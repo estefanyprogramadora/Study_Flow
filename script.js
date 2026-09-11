@@ -1,39 +1,686 @@
 /* =====================================================
    STUDYFLOW
-   JavaScript principal
+   AUTENTICAÇÃO + FIREBASE
 ===================================================== */
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+
+import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+
+/* =====================================================
+   FIREBASE
+===================================================== */
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCZT5mqAe_51jGQEf8c32pZG2KPkHad6Ew",
+    authDomain: "syudyflow.firebaseapp.com",
+    projectId: "syudyflow",
+    storageBucket: "syudyflow.firebasestorage.app",
+    messagingSenderId: "8547044265",
+    appId: "1:8547044265:web:ff16de0c1d64eea57452b8",
+    measurementId: "G-32LRCSB3H1"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
+
+let currentUser = null;
+let authMode = "login";
+
+
+/* =====================================================
+   ELEMENTOS DA AUTENTICAÇÃO
+===================================================== */
+
+const authScreen = document.getElementById("authScreen");
+const authForm = document.getElementById("authForm");
+
+const authName = document.getElementById("authName");
+const authNameContainer = document.getElementById("authNameContainer");
+
+const authEmail = document.getElementById("authEmail");
+const authPassword = document.getElementById("authPassword");
+
+const emailSubmit = document.getElementById("emailSubmit");
+
+const googleLogin = document.getElementById("googleLogin");
+
+const toggleAuthMode = document.getElementById("toggleAuthMode");
+const authModeText = document.getElementById("authModeText");
+
+const authMessage = document.getElementById("authMessage");
+
+
+/* =====================================================
+   MENSAGEM
+===================================================== */
+
+function showAuthMessage(message) {
+    if (authMessage) {
+        authMessage.textContent = message;
+    }
+}
+
+
+/* =====================================================
+   BOTÃO ENTRAR / CRIAR CONTA
+===================================================== */
+
+function updateAuthButton() {
+
+    const email = authEmail.value.trim();
+    const password = authPassword.value.trim();
+    const name = authName.value.trim();
+
+    if (authMode === "login") {
+
+        emailSubmit.disabled = !(email && password);
+
+    } else {
+
+        emailSubmit.disabled = !(
+            name &&
+            email &&
+            password.length >= 6
+        );
+    }
+}
+
+
+/* =====================================================
+   MODO LOGIN / CADASTRO
+===================================================== */
+
+function updateAuthMode() {
+
+    const register = authMode === "register";
+
+    authNameContainer.style.display = register
+        ? "block"
+        : "none";
+
+    emailSubmit.textContent = register
+        ? "Criar conta"
+        : "Entrar";
+
+    authModeText.textContent = register
+        ? "Já possui uma conta?"
+        : "Não possui uma conta?";
+
+    toggleAuthMode.textContent = register
+        ? "Entrar"
+        : "Criar conta";
+
+    showAuthMessage("");
+
+    updateAuthButton();
+}
+
+
+/* =====================================================
+   CAMPOS
+===================================================== */
+
+authEmail.addEventListener(
+    "input",
+    updateAuthButton
+);
+
+authPassword.addEventListener(
+    "input",
+    updateAuthButton
+);
+
+authName.addEventListener(
+    "input",
+    updateAuthButton
+);
+
+
+/* =====================================================
+   ALTERAR ENTRE LOGIN E CADASTRO
+===================================================== */
+
+toggleAuthMode.addEventListener("click", () => {
+
+    authMode =
+        authMode === "login"
+            ? "register"
+            : "login";
+
+    updateAuthMode();
+});
+
+/* =====================================================
+   LOGIN / CADASTRO COM E-MAIL
+===================================================== */
+
+authForm.addEventListener("submit", async event => {
+
+    event.preventDefault();
+
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    const name = authName.value.trim();
+
+    if (!email || !password) {
+        return;
+    }
+
+    emailSubmit.disabled = true;
+    showAuthMessage("");
+
+    try {
+
+        /* =========================================
+           LOGIN
+        ========================================= */
+
+        if (authMode === "login") {
+
+            const credential =
+                await signInWithEmailAndPassword(
+                    auth,
+                    email,
+                    password
+                );
+
+            currentUser = credential.user;
+
+            /* Fecha a tela de login */
+            if (authScreen) {
+                authScreen.style.display = "none";
+            }
+
+            /* Carrega os dados do usuário */
+            loadUserData(currentUser);
+            loadUserProfile(currentUser);
+            loadProfilePhoto();
+            loadPlaylist();
+
+            renderTasks();
+            renderCalendar();
+            renderSelectedDay();
+            updateNextEvent();
+
+            return;
+        }
+
+
+        /* =========================================
+           CADASTRO
+        ========================================= */
+
+        if (!name) {
+
+            showAuthMessage(
+                "Digite seu nome."
+            );
+
+            emailSubmit.disabled = false;
+            return;
+        }
+
+
+        if (password.length < 6) {
+
+            showAuthMessage(
+                "A senha precisa ter pelo menos 6 caracteres."
+            );
+
+            emailSubmit.disabled = false;
+            return;
+        }
+
+
+        const credential =
+            await createUserWithEmailAndPassword(
+                auth,
+                email,
+                password
+            );
+
+
+        /* Salva o nome */
+        await updateProfile(
+            credential.user,
+            {
+                displayName: name
+            }
+        );
+
+
+        /* Define o usuário atual */
+        currentUser = credential.user;
+
+
+        /* =========================================
+           ENTRAR AUTOMATICAMENTE NO APP
+        ========================================= */
+
+        if (authScreen) {
+            authScreen.style.display = "none";
+        }
+
+
+        const splashScreen =
+            document.getElementById("splashScreen");
+
+        if (splashScreen) {
+            splashScreen.classList.add("hide");
+        }
+
+
+        /* Carrega o perfil */
+        loadUserProfile(currentUser);
+
+
+        /* Carrega os dados */
+        loadUserData(currentUser);
+        loadProfilePhoto();
+        loadPlaylist();
+
+        renderTasks();
+        renderCalendar();
+        renderSelectedDay();
+        updateNextEvent();
+
+
+        showAuthMessage("");
+
+    } catch (error) {
+
+        console.error(
+            "Erro de autenticação:",
+            error
+        );
+
+
+        if (
+            error.code ===
+            "auth/user-not-found"
+        ) {
+
+            showAuthMessage(
+                "Usuário não encontrado."
+            );
+
+        } else if (
+            error.code ===
+            "auth/invalid-credential"
+        ) {
+
+            showAuthMessage(
+                "Usuário não encontrado ou senha incorreta."
+            );
+
+        } else if (
+            error.code ===
+            "auth/wrong-password"
+        ) {
+
+            showAuthMessage(
+                "Senha incorreta."
+            );
+
+        } else if (
+            error.code ===
+            "auth/email-already-in-use"
+        ) {
+
+            showAuthMessage(
+                "Esse e-mail já possui uma conta."
+            );
+
+        } else if (
+            error.code ===
+            "auth/invalid-email"
+        ) {
+
+            showAuthMessage(
+                "Digite um e-mail válido."
+            );
+
+        } else if (
+            error.code ===
+            "auth/weak-password"
+        ) {
+
+            showAuthMessage(
+                "A senha precisa ter pelo menos 6 caracteres."
+            );
+
+        } else {
+
+            showAuthMessage(
+                "Não foi possível acessar a conta."
+            );
+        }
+
+    } finally {
+
+        updateAuthButton();
+
+    }
+});
+
+/* =====================================================
+   LOGIN COM GOOGLE
+===================================================== */
+
+async function loginWithGoogle() {
+
+    try {
+
+        showAuthMessage(
+            "Abrindo login do Google..."
+        );
+
+        await signInWithPopup(
+            auth,
+            googleProvider
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Erro no Google:",
+            error
+        );
+
+
+        if (
+            error.code ===
+            "auth/popup-closed-by-user"
+        ) {
+
+            showAuthMessage(
+                "A janela de login foi fechada."
+            );
+
+        } else if (
+            error.code ===
+            "auth/popup-blocked"
+        ) {
+
+            showAuthMessage(
+                "O navegador bloqueou a janela de login."
+            );
+
+        } else {
+
+            showAuthMessage(
+                "Não foi possível entrar com o Google."
+            );
+        }
+    }
+}
+
+
+googleLogin.addEventListener(
+    "click",
+    loginWithGoogle
+);
+
+
+/* =====================================================
+   ESTADO DA AUTENTICAÇÃO
+===================================================== */
+
+onAuthStateChanged(
+    auth,
+    user => {
+
+        currentUser = user;
+
+        if (user) {
+
+            if (authScreen) {
+                authScreen.style.display = "none";
+            }
+
+            loadUserData(user);
+            loadUserProfile(user);
+            loadProfilePhoto();
+            loadPlaylist();
+
+            renderTasks();
+            renderCalendar();
+            renderSelectedDay();
+            updateNextEvent();
+
+        } else {
+
+            if (authScreen) {
+                authScreen.style.display = "flex";
+            }
+
+            tasks = [];
+            events = [];
+
+            renderTasks();
+            renderCalendar();
+            renderSelectedDay();
+            updateNextEvent();
+        }
+    }
+);
+
+
+/* =====================================================
+   PERFIL
+===================================================== */
+
+function loadUserProfile(user) {
+
+    const name =
+        user.displayName ||
+        "Estudante";
+
+    const email =
+        user.email ||
+        "Conta StudyFlow";
+
+    const profileName =
+        document.getElementById(
+            "profileName"
+        );
+
+    const profileEmail =
+        document.getElementById(
+            "profileEmail"
+        );
+
+    const welcomeName =
+        document.getElementById(
+            "welcomeName"
+        );
+
+
+    if (profileName) {
+        profileName.textContent = name;
+    }
+
+    if (profileEmail) {
+        profileEmail.textContent = email;
+    }
+
+    if (welcomeName) {
+        welcomeName.textContent = name;
+    }
+
+    updateProfileInitial(name);
+}
+
+
+/* =====================================================
+   INICIAL DO PERFIL
+===================================================== */
+
+function updateProfileInitial(name) {
+
+    const initial =
+        name
+            .trim()
+            .charAt(0)
+            .toUpperCase() || "S";
+
+
+    const profileInitial =
+        document.getElementById(
+            "profileInitial"
+        );
+
+    const headerInitial =
+        document.getElementById(
+            "headerProfileInitial"
+        );
+
+
+    if (profileInitial) {
+        profileInitial.textContent =
+            initial;
+    }
+
+    if (headerInitial) {
+        headerInitial.textContent =
+            initial;
+    }
+}
+
+
+/* =====================================================
+   EDITAR NOME
+===================================================== */
+
+const editProfileName =
+    document.getElementById(
+        "editProfileName"
+    );
+
+if (editProfileName) {
+
+    editProfileName.addEventListener(
+        "click",
+        async () => {
+
+            if (!currentUser) {
+                return;
+            }
+
+
+            const newName = prompt(
+                "Digite seu novo nome:",
+                currentUser.displayName || ""
+            );
+
+
+            if (
+                !newName ||
+                !newName.trim()
+            ) {
+                return;
+            }
+
+
+            try {
+
+                await updateProfile(
+                    currentUser,
+                    {
+                        displayName:
+                            newName.trim()
+                    }
+                );
+
+
+                await currentUser.reload();
+
+                loadUserProfile(
+                    currentUser
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Erro ao alterar nome:",
+                    error
+                );
+
+                alert(
+                    "Não foi possível alterar o nome."
+                );
+            }
+        }
+    );
+}
+
+
+/* =====================================================
+   LOGOUT
+===================================================== */
+
+const logoutButton =
+    document.getElementById(
+        "logoutButton"
+    );
+
+if (logoutButton) {
+
+    logoutButton.addEventListener(
+        "click",
+        async () => {
+
+            try {
+
+                await signOut(auth);
+
+            } catch (error) {
+
+                console.error(
+                    "Erro ao sair:",
+                    error
+                );
+
+                alert(
+                    "Não foi possível sair da conta."
+                );
+            }
+        }
+    );
+}
+
+
+/* =====================================================
+   DATA + ALL OTHER APP CODE
+===================================================== */
 
 /* =====================================================
    DADOS
 ===================================================== */
 
-let tasks =
-    JSON.parse(
-        localStorage.getItem("studyflow_tasks")
-    ) || [];
+let tasks = [];
 
-
-let events =
-    JSON.parse(
-        localStorage.getItem("studyflow_events")
-    ) || [];
-
+let events = [];
 
 let currentFilter = "all";
-
 
 let currentCalendarDate =
     new Date();
 
-
 let selectedDate =
     new Date();
-
-
-/* =====================================================
-   CONTROLE DE EDIÇÃO
-===================================================== */
 
 let editingTaskId = null;
 
@@ -41,57 +688,141 @@ let editingEventId = null;
 
 
 /* =====================================================
-   ELEMENTOS
+   ELEMENTOS DO APLICATIVO
 ===================================================== */
 
 const taskModal =
-    document.getElementById("taskModal");
+    document.getElementById(
+        "taskModal"
+    );
 
 
 const eventModal =
-    document.getElementById("eventModal");
+    document.getElementById(
+        "eventModal"
+    );
 
 
 const taskForm =
-    document.getElementById("taskForm");
+    document.getElementById(
+        "taskForm"
+    );
 
 
 const eventForm =
-    document.getElementById("eventForm");
+    document.getElementById(
+        "eventForm"
+    );
 
 
 const taskList =
-    document.getElementById("taskList");
+    document.getElementById(
+        "taskList"
+    );
 
 
 const homeTaskList =
-    document.getElementById("homeTaskList");
+    document.getElementById(
+        "homeTaskList"
+    );
 
 
 const emptyTasks =
-    document.getElementById("emptyTasks");
+    document.getElementById(
+        "emptyTasks"
+    );
 
 
 /* =====================================================
-   SALVAR DADOS
+   SALVAR TAREFAS
 ===================================================== */
 
 function saveTasks() {
 
+    if (!currentUser) {
+        return;
+    }
+
+
     localStorage.setItem(
-        "studyflow_tasks",
+        `studyflow_tasks_${currentUser.uid}`,
         JSON.stringify(tasks)
     );
 
 }
 
 
+/* =====================================================
+   SALVAR EVENTOS
+===================================================== */
+
 function saveEvents() {
 
+    if (!currentUser) {
+        return;
+    }
+
+
     localStorage.setItem(
-        "studyflow_events",
+        `studyflow_events_${currentUser.uid}`,
         JSON.stringify(events)
     );
+
+}
+
+
+/* =====================================================
+   CARREGAR DADOS DO USUÁRIO
+===================================================== */
+
+function loadUserData(
+    user
+) {
+
+    const storedTasks =
+        localStorage.getItem(
+            `studyflow_tasks_${user.uid}`
+        );
+
+
+    const storedEvents =
+        localStorage.getItem(
+            `studyflow_events_${user.uid}`
+        );
+
+
+    try {
+
+        tasks =
+            storedTasks
+                ? JSON.parse(
+                    storedTasks
+                )
+                : [];
+
+
+        events =
+            storedEvents
+                ? JSON.parse(
+                    storedEvents
+                )
+                : [];
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Não foi possível carregar os dados da conta:",
+            error
+        );
+
+
+        tasks = [];
+
+        events = [];
+
+    }
 
 }
 
@@ -101,63 +832,65 @@ function saveEvents() {
 ===================================================== */
 
 document
-    .querySelectorAll(".nav-item")
-    .forEach(button => {
+    .querySelectorAll(
+        ".nav-item, [data-screen]"
+    )
+    .forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                showScreen(
-                    button.dataset.screen
+                    if (
+                        button.dataset.screen
+                    ) {
+
+                        showScreen(
+                            button.dataset.screen
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+    );
+
+
+function showScreen(
+    screenName
+) {
+
+    document
+        .querySelectorAll(
+            ".screen"
+        )
+        .forEach(
+            screen => {
+
+                screen.classList.remove(
+                    "active"
                 );
 
             }
         );
 
-    });
 
+    document
+        .querySelectorAll(
+            ".nav-item"
+        )
+        .forEach(
+            button => {
 
-document
-    .querySelectorAll("[data-screen]")
-    .forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                showScreen(
-                    button.dataset.screen
+                button.classList.remove(
+                    "active"
                 );
 
             }
         );
-
-    });
-
-
-function showScreen(screenName) {
-
-    document
-        .querySelectorAll(".screen")
-        .forEach(screen => {
-
-            screen.classList.remove(
-                "active"
-            );
-
-        });
-
-
-    document
-        .querySelectorAll(".nav-item")
-        .forEach(button => {
-
-            button.classList.remove(
-                "active"
-            );
-
-        });
 
 
     const selectedScreen =
@@ -179,16 +912,21 @@ function showScreen(screenName) {
         .querySelectorAll(
             `.nav-item[data-screen="${screenName}"]`
         )
-        .forEach(button => {
+        .forEach(
+            button => {
 
-            button.classList.add(
-                "active"
-            );
+                button.classList.add(
+                    "active"
+                );
 
-        });
+            }
+        );
 
 
-    if (screenName === "calendar") {
+    if (
+        screenName ===
+        "calendar"
+    ) {
 
         renderCalendar();
 
@@ -211,6 +949,11 @@ function updateDate() {
         );
 
 
+    if (!element) {
+        return;
+    }
+
+
     const today =
         new Date();
 
@@ -219,9 +962,14 @@ function updateDate() {
         today.toLocaleDateString(
             "pt-BR",
             {
-                weekday: "long",
-                day: "numeric",
-                month: "long"
+                weekday:
+                    "long",
+
+                day:
+                    "numeric",
+
+                month:
+                    "long"
             }
         );
 
@@ -233,6 +981,11 @@ function updateDate() {
 ===================================================== */
 
 function renderTasks() {
+
+    if (!taskList || !homeTaskList) {
+        return;
+    }
+
 
     taskList.innerHTML = "";
 
@@ -250,7 +1003,8 @@ function renderTasks() {
 
         filtered =
             tasks.filter(
-                task => !task.completed
+                task =>
+                    !task.completed
             );
 
     }
@@ -263,54 +1017,59 @@ function renderTasks() {
 
         filtered =
             tasks.filter(
-                task => task.completed
+                task =>
+                    task.completed
             );
 
     }
 
 
-    if (filtered.length === 0) {
+    if (
+        emptyTasks
+    ) {
 
         emptyTasks.style.display =
-            "block";
-
-    } else {
-
-        emptyTasks.style.display =
-            "none";
+            filtered.length === 0
+                ? "block"
+                : "none";
 
     }
 
 
-    filtered.forEach(task => {
+    filtered.forEach(
+        task => {
 
-        taskList.appendChild(
-            createTaskElement(task)
-        );
-
-    });
-
-
-    /*
-       Na página inicial mostramos apenas
-       as tarefas que ainda estão pendentes.
-    */
-
-    tasks
-        .filter(
-            task => !task.completed
-        )
-        .slice(0, 4)
-        .forEach(task => {
-
-            homeTaskList.appendChild(
+            taskList.appendChild(
                 createTaskElement(
-                    task,
-                    true
+                    task
                 )
             );
 
-        });
+        }
+    );
+
+
+    tasks
+        .filter(
+            task =>
+                !task.completed
+        )
+        .slice(
+            0,
+            4
+        )
+        .forEach(
+            task => {
+
+                homeTaskList.appendChild(
+                    createTaskElement(
+                        task,
+                        true
+                    )
+                );
+
+            }
+        );
 
 
     updateStats();
@@ -325,7 +1084,7 @@ function renderTasks() {
 
 
 /* =====================================================
-   CRIAR ELEMENTO DE TAREFA
+   ELEMENTO DE TAREFA
 ===================================================== */
 
 function createTaskElement(
@@ -343,7 +1102,9 @@ function createTaskElement(
         "task";
 
 
-    if (task.completed) {
+    if (
+        task.completed
+    ) {
 
         element.classList.add(
             "completed"
@@ -371,6 +1132,7 @@ function createTaskElement(
 
         <button
             class="task-check"
+            type="button"
             data-id="${task.id}"
             title="${
                 task.completed
@@ -384,16 +1146,23 @@ function createTaskElement(
         <div class="task-info">
 
             <h3>
-                ${escapeHTML(task.title)}
+                ${escapeHTML(
+                    task.title
+                )}
             </h3>
 
             <p>
-                ${escapeHTML(task.subject)}
+                ${escapeHTML(
+                    task.subject
+                )}
 
-                ${task.date
-                    ? " • " +
-                      formatDate(task.date)
-                    : ""
+                ${
+                    task.date
+                        ? " • " +
+                          formatDate(
+                              task.date
+                          )
+                        : ""
                 }
 
             </p>
@@ -408,6 +1177,7 @@ function createTaskElement(
 
                         <button
                             class="edit-task"
+                            type="button"
                             data-id="${task.id}"
                             title="Editar tarefa"
                         >
@@ -416,6 +1186,7 @@ function createTaskElement(
 
                         <button
                             class="delete-task"
+                            type="button"
                             data-id="${task.id}"
                             title="Excluir tarefa"
                         >
@@ -430,7 +1201,9 @@ function createTaskElement(
 
 
     element
-        .querySelector(".task-check")
+        .querySelector(
+            ".task-check"
+        )
         .addEventListener(
             "click",
             () => {
@@ -446,7 +1219,9 @@ function createTaskElement(
     if (!compact) {
 
         element
-            .querySelector(".edit-task")
+            .querySelector(
+                ".edit-task"
+            )
             .addEventListener(
                 "click",
                 () => {
@@ -460,7 +1235,9 @@ function createTaskElement(
 
 
         element
-            .querySelector(".delete-task")
+            .querySelector(
+                ".delete-task"
+            )
             .addEventListener(
                 "click",
                 () => {
@@ -489,7 +1266,8 @@ function getPriorityLabel(
 ) {
 
     if (
-        priority === "high"
+        priority ===
+        "high"
     ) {
 
         return "alta";
@@ -498,7 +1276,8 @@ function getPriorityLabel(
 
 
     if (
-        priority === "low"
+        priority ===
+        "low"
     ) {
 
         return "baixa";
@@ -515,30 +1294,32 @@ function getPriorityLabel(
    CONCLUIR TAREFA
 ===================================================== */
 
-function toggleTask(id) {
+function toggleTask(
+    id
+) {
 
     tasks =
-        tasks.map(task => {
+        tasks.map(
+            task => {
 
-            if (
-                task.id === id
-            ) {
+                if (
+                    task.id ===
+                    id
+                ) {
 
-                return {
+                    return {
+                        ...task,
+                        completed:
+                            !task.completed
+                    };
 
-                    ...task,
+                }
 
-                    completed:
-                        !task.completed
 
-                };
+                return task;
 
             }
-
-
-            return task;
-
-        });
+        );
 
 
     saveTasks();
@@ -552,7 +1333,9 @@ function toggleTask(id) {
    EXCLUIR TAREFA
 ===================================================== */
 
-function deleteTask(id) {
+function deleteTask(
+    id
+) {
 
     const confirmed =
         confirm(
@@ -567,7 +1350,9 @@ function deleteTask(id) {
 
     tasks =
         tasks.filter(
-            task => task.id !== id
+            task =>
+                task.id !==
+                id
         );
 
 
@@ -582,11 +1367,15 @@ function deleteTask(id) {
    EDITAR TAREFA
 ===================================================== */
 
-function editTask(id) {
+function editTask(
+    id
+) {
 
     const task =
         tasks.find(
-            task => task.id === id
+            task =>
+                task.id ===
+                id
         );
 
 
@@ -614,7 +1403,8 @@ function editTask(id) {
     document.getElementById(
         "taskDate"
     ).value =
-        task.date || "";
+        task.date ||
+        "";
 
 
     document.getElementById(
@@ -643,7 +1433,7 @@ function editTask(id) {
 
 
 /* =====================================================
-   MODAL TAREFA
+   MODAL DE TAREFA
 ===================================================== */
 
 document
@@ -760,49 +1550,40 @@ taskForm.addEventListener(
                 .value;
 
 
-        /*
-           EDITANDO UMA TAREFA EXISTENTE
-        */
-
         if (
             editingTaskId !== null
         ) {
 
             tasks =
-                tasks.map(task => {
+                tasks.map(
+                    task => {
 
-                    if (
-                        task.id ===
-                        editingTaskId
-                    ) {
+                        if (
+                            task.id ===
+                            editingTaskId
+                        ) {
 
-                        return {
+                            return {
+                                ...task,
 
-                            ...task,
+                                title,
 
-                            title,
+                                subject,
 
-                            subject,
+                                date,
 
-                            date,
+                                priority
+                            };
 
-                            priority
+                        }
 
-                        };
+
+                        return task;
 
                     }
-
-
-                    return task;
-
-                });
+                );
 
         }
-
-
-        /*
-           CRIANDO UMA NOVA TAREFA
-        */
 
         else {
 
@@ -839,7 +1620,6 @@ taskForm.addEventListener(
 
         taskForm.reset();
 
-
         taskModal.classList.remove(
             "active"
         );
@@ -869,43 +1649,47 @@ taskForm.addEventListener(
 ===================================================== */
 
 document
-    .querySelectorAll(".filter")
-    .forEach(button => {
+    .querySelectorAll(
+        ".filter"
+    )
+    .forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                document
-                    .querySelectorAll(
-                        ".filter"
-                    )
-                    .forEach(
-                        item => {
+                    document
+                        .querySelectorAll(
+                            ".filter"
+                        )
+                        .forEach(
+                            item => {
 
-                            item.classList.remove(
-                                "active"
-                            );
+                                item.classList.remove(
+                                    "active"
+                                );
 
-                        }
+                            }
+                        );
+
+
+                    button.classList.add(
+                        "active"
                     );
 
 
-                button.classList.add(
-                    "active"
-                );
+                    currentFilter =
+                        button.dataset.filter;
 
 
-                currentFilter =
-                    button.dataset.filter;
+                    renderTasks();
 
+                }
+            );
 
-                renderTasks();
-
-            }
-        );
-
-    });
+        }
+    );
 
 
 /* =====================================================
@@ -936,75 +1720,60 @@ function updateStats() {
         total === 0
             ? 0
             : Math.round(
-                (completed / total) *
+                (
+                    completed /
+                    total
+                ) *
                 100
             );
 
 
-    document.getElementById(
-        "completedCount"
-    ).textContent =
-        completed;
-
-
-    document.getElementById(
-        "pendingCount"
-    ).textContent =
-        pending;
-
-
-    document.getElementById(
-        "dailyPercentage"
-    ).textContent =
-        `${percentage}%`;
-
-
-    document.getElementById(
-        "progressCompleted"
-    ).textContent =
-        completed;
-
-
-    document.getElementById(
-        "progressPending"
-    ).textContent =
-        pending;
-
-
-    document.getElementById(
-        "progressTotal"
-    ).textContent =
-        `${percentage}%`;
-
-
-    document.getElementById(
-        "largeProgressText"
-    ).textContent =
-        `${completed} de ${total} tarefas concluídas`;
-
-
-    document.getElementById(
-        "largeProgressBar"
-    ).style.width =
-        `${percentage}%`;
-
-
-    const circle =
-        document.querySelector(
-            ".progress-circle"
+    const completedCount =
+        document.getElementById(
+            "completedCount"
         );
 
 
-    circle.style.background =
-        `
-        conic-gradient(
-            var(--primary)
-            ${percentage * 3.6}deg,
+    const pendingCount =
+        document.getElementById(
+            "pendingCount"
+        );
 
-            var(--primary-light)
-            ${percentage * 3.6}deg
-        )
-        `;
+
+    const dailyPercentage =
+        document.getElementById(
+            "dailyPercentage"
+        );
+
+
+    const progressCompleted =
+        document.getElementById(
+            "progressCompleted"
+        );
+
+
+    const progressPending =
+        document.getElementById(
+            "progressPending"
+        );
+
+
+    const progressTotal =
+        document.getElementById(
+            "progressTotal"
+        );
+
+
+    const largeProgressText =
+        document.getElementById(
+            "largeProgressText"
+        );
+
+
+    const largeProgressBar =
+        document.getElementById(
+            "largeProgressBar"
+        );
 
 
     const description =
@@ -1013,26 +1782,106 @@ function updateStats() {
         );
 
 
-    if (total === 0) {
+    if (completedCount) {
+        completedCount.textContent =
+            completed;
+    }
 
-        description.textContent =
-            "Você ainda não possui tarefas.";
+
+    if (pendingCount) {
+        pendingCount.textContent =
+            pending;
+    }
+
+
+    if (dailyPercentage) {
+        dailyPercentage.textContent =
+            `${percentage}%`;
+    }
+
+
+    if (progressCompleted) {
+        progressCompleted.textContent =
+            completed;
+    }
+
+
+    if (progressPending) {
+        progressPending.textContent =
+            pending;
+    }
+
+
+    if (progressTotal) {
+        progressTotal.textContent =
+            `${percentage}%`;
+    }
+
+
+    if (largeProgressText) {
+
+        largeProgressText.textContent =
+            `${completed} de ${total} tarefas concluídas`;
 
     }
 
-    else if (
-        percentage === 100
-    ) {
 
-        description.textContent =
-            "Todas as tarefas foram concluídas!";
+    if (largeProgressBar) {
+
+        largeProgressBar.style.width =
+            `${percentage}%`;
 
     }
 
-    else {
 
-        description.textContent =
-            `${pending} tarefa(s) ainda precisam de atenção.`;
+    const circle =
+        document.querySelector(
+            ".progress-circle"
+        );
+
+
+    if (circle) {
+
+        circle.style.background =
+            `
+                conic-gradient(
+                    var(--primary)
+                    ${percentage * 3.6}deg,
+
+                    var(--primary-light)
+                    ${percentage * 3.6}deg
+                )
+            `;
+
+    }
+
+
+    if (description) {
+
+        if (
+            total === 0
+        ) {
+
+            description.textContent =
+                "Você ainda não possui tarefas.";
+
+        }
+
+        else if (
+            percentage === 100
+        ) {
+
+            description.textContent =
+                "Todas as tarefas foram concluídas!";
+
+        }
+
+        else {
+
+            description.textContent =
+                `${pending} tarefa(s) ainda precisam de atenção.`;
+
+        }
 
     }
 
@@ -1057,7 +1906,18 @@ function renderCalendar() {
         );
 
 
-    grid.innerHTML = "";
+    if (
+        !grid ||
+        !monthTitle
+    ) {
+
+        return;
+
+    }
+
+
+    grid.innerHTML =
+        "";
 
 
     const year =
@@ -1075,8 +1935,11 @@ function renderCalendar() {
             .toLocaleDateString(
                 "pt-BR",
                 {
-                    month: "long",
-                    year: "numeric"
+                    month:
+                        "long",
+
+                    year:
+                        "numeric"
                 }
             );
 
@@ -1181,9 +2044,7 @@ function renderCalendar() {
                 ${day}
             </div>
 
-            <div
-                class="calendar-items"
-            ></div>
+            <div class="calendar-items"></div>
 
         `;
 
@@ -1200,30 +2061,32 @@ function renderCalendar() {
             .filter(
                 task =>
                     task.date ===
-                    dateString &&
+                        dateString &&
                     !task.completed
             )
-            .forEach(task => {
+            .forEach(
+                task => {
 
-                const item =
-                    document.createElement(
-                        "div"
+                    const item =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    item.className =
+                        "calendar-item calendar-task";
+
+
+                    item.textContent =
+                        task.title;
+
+
+                    itemsContainer.appendChild(
+                        item
                     );
 
-
-                item.className =
-                    "calendar-item calendar-task";
-
-
-                item.textContent =
-                    task.title;
-
-
-                itemsContainer.appendChild(
-                    item
-                );
-
-            });
+                }
+            );
 
 
         /* EVENTOS */
@@ -1234,27 +2097,29 @@ function renderCalendar() {
                     event.date ===
                     dateString
             )
-            .forEach(event => {
+            .forEach(
+                event => {
 
-                const item =
-                    document.createElement(
-                        "div"
+                    const item =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    item.className =
+                        "calendar-item calendar-event";
+
+
+                    item.textContent =
+                        event.title;
+
+
+                    itemsContainer.appendChild(
+                        item
                     );
 
-
-                item.className =
-                    "calendar-item calendar-event";
-
-
-                item.textContent =
-                    event.title;
-
-
-                itemsContainer.appendChild(
-                    item
-                );
-
-            });
+                }
+            );
 
 
         cell.addEventListener(
@@ -1287,7 +2152,7 @@ function renderCalendar() {
 
 
 /* =====================================================
-   NAVEGAR PELOS MESES
+   NAVEGAÇÃO DO CALENDÁRIO
 ===================================================== */
 
 document
@@ -1299,7 +2164,8 @@ document
         () => {
 
             currentCalendarDate.setMonth(
-                currentCalendarDate.getMonth() - 1
+                currentCalendarDate.getMonth() -
+                1
             );
 
 
@@ -1318,7 +2184,8 @@ document
         () => {
 
             currentCalendarDate.setMonth(
-                currentCalendarDate.getMonth() + 1
+                currentCalendarDate.getMonth() +
+                1
             );
 
 
@@ -1346,6 +2213,16 @@ function renderSelectedDay() {
         );
 
 
+    if (
+        !container ||
+        !title
+    ) {
+
+        return;
+
+    }
+
+
     const dateString =
         dateToString(
             selectedDate
@@ -1356,26 +2233,27 @@ function renderSelectedDay() {
         selectedDate.toLocaleDateString(
             "pt-BR",
             {
-                day: "numeric",
-                month: "long",
-                year: "numeric"
+                day:
+                    "numeric",
+
+                month:
+                    "long",
+
+                year:
+                    "numeric"
             }
         );
 
 
-    container.innerHTML = "";
+    container.innerHTML =
+        "";
 
-
-    /*
-       Apenas tarefas pendentes aparecem
-       na agenda do dia.
-    */
 
     const dayTasks =
         tasks.filter(
             task =>
                 task.date ===
-                dateString &&
+                    dateString &&
                 !task.completed
         );
 
@@ -1456,6 +2334,7 @@ function renderSelectedDay() {
 
                     <button
                         class="edit-event"
+                        type="button"
                         data-id="${event.id}"
                         title="Editar evento"
                     >
@@ -1464,6 +2343,7 @@ function renderSelectedDay() {
 
                     <button
                         class="delete-event"
+                        type="button"
                         data-id="${event.id}"
                         title="Excluir evento"
                     >
@@ -1556,6 +2436,7 @@ function renderSelectedDay() {
 
                     <button
                         class="edit-task-day"
+                        type="button"
                         data-id="${task.id}"
                         title="Editar tarefa"
                     >
@@ -1564,6 +2445,7 @@ function renderSelectedDay() {
 
                     <button
                         class="complete-task-day"
+                        type="button"
                         data-id="${task.id}"
                         title="Concluir tarefa"
                     >
@@ -1695,11 +2577,15 @@ document
    EDITAR EVENTO
 ===================================================== */
 
-function editEvent(id) {
+function editEvent(
+    id
+) {
 
     const event =
         events.find(
-            event => event.id === id
+            event =>
+                event.id ===
+                id
         );
 
 
@@ -1721,7 +2607,8 @@ function editEvent(id) {
     document.getElementById(
         "eventDescription"
     ).value =
-        event.description || "";
+        event.description ||
+        "";
 
 
     document.getElementById(
@@ -1753,7 +2640,9 @@ function editEvent(id) {
    EXCLUIR EVENTO
 ===================================================== */
 
-function deleteEvent(id) {
+function deleteEvent(
+    id
+) {
 
     const confirmed =
         confirm(
@@ -1769,7 +2658,8 @@ function deleteEvent(id) {
     events =
         events.filter(
             event =>
-                event.id !== id
+                event.id !==
+                id
         );
 
 
@@ -1821,47 +2711,38 @@ eventForm.addEventListener(
                 .value;
 
 
-        /*
-           EDITANDO EVENTO
-        */
-
         if (
             editingEventId !== null
         ) {
 
             events =
-                events.map(event => {
+                events.map(
+                    event => {
 
-                    if (
-                        event.id ===
-                        editingEventId
-                    ) {
+                        if (
+                            event.id ===
+                            editingEventId
+                        ) {
 
-                        return {
+                            return {
+                                ...event,
 
-                            ...event,
+                                title,
 
-                            title,
+                                description,
 
-                            description,
+                                date
+                            };
 
-                            date
+                        }
 
-                        };
+
+                        return event;
 
                     }
-
-
-                    return event;
-
-                });
+                );
 
         }
-
-
-        /*
-           CRIANDO EVENTO
-        */
 
         else {
 
@@ -1935,6 +2816,11 @@ function updateNextEvent() {
         );
 
 
+    if (!container) {
+        return;
+    }
+
+
     const today =
         dateToString(
             new Date()
@@ -1962,7 +2848,8 @@ function updateNextEvent() {
                 task =>
                     !task.completed &&
                     task.date &&
-                    task.date >= today
+                    task.date >=
+                    today
             )
             .sort(
                 (a, b) =>
@@ -2054,9 +2941,10 @@ function updateNextEvent() {
     container.innerHTML = `
 
         <div class="empty-icon">
-            ${item.type === "Evento"
-                ? "📌"
-                : "✓"
+            ${
+                item.type === "Evento"
+                    ? "📌"
+                    : "✓"
             }
         </div>
 
@@ -2086,32 +2974,34 @@ document
     .querySelectorAll(
         ".theme-option"
     )
-    .forEach(button => {
+    .forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                const theme =
-                    button.dataset.theme;
-
-
-                document.body.dataset.theme =
-                    theme;
+                    const theme =
+                        button.dataset.theme;
 
 
-                localStorage.setItem(
-                    "studyflow_theme",
-                    theme
-                );
+                    document.body.dataset.theme =
+                        theme;
 
 
-                updateActiveTheme();
+                    localStorage.setItem(
+                        "studyflow_theme",
+                        theme
+                    );
 
-            }
-        );
 
-    });
+                    updateActiveTheme();
+
+                }
+            );
+
+        }
+    );
 
 
 function loadTheme() {
@@ -2146,15 +3036,17 @@ function updateActiveTheme() {
         .querySelectorAll(
             ".theme-option"
         )
-        .forEach(button => {
+        .forEach(
+            button => {
 
-            button.classList.toggle(
-                "active",
-                button.dataset.theme ===
-                currentTheme
-            );
+                button.classList.toggle(
+                    "active",
+                    button.dataset.theme ===
+                    currentTheme
+                );
 
-        });
+            }
+        );
 
 }
 
@@ -2163,72 +3055,108 @@ function updateActiveTheme() {
    FOTO DE PERFIL
 ===================================================== */
 
+function getUserPhotoKey() {
+
+    if (!currentUser) {
+        return null;
+    }
+
+
+    return `studyflow_profile_photo_${currentUser.uid}`;
+
+}
+
+
 const profilePhotoInput =
     document.getElementById(
         "profilePhotoInput"
     );
 
 
-profilePhotoInput.addEventListener(
-    "change",
-    event => {
+if (profilePhotoInput) {
 
-        const file =
-            event.target.files[0];
+    profilePhotoInput.addEventListener(
+        "change",
+        event => {
 
-
-        if (!file) {
-            return;
-        }
+            if (!currentUser) {
+                return;
+            }
 
 
-        if (
-            !file.type.startsWith(
-                "image/"
-            )
-        ) {
-
-            alert(
-                "Escolha uma imagem válida."
-            );
-
-            return;
-
-        }
+            const file =
+                event.target.files[0];
 
 
-        const reader =
-            new FileReader();
+            if (!file) {
+                return;
+            }
 
 
-        reader.onload =
-            () => {
+            if (
+                !file.type.startsWith(
+                    "image/"
+                )
+            ) {
 
-                localStorage.setItem(
-                    "studyflow_profile_photo",
-                    reader.result
+                alert(
+                    "Escolha uma imagem válida."
                 );
 
+                return;
 
-                loadProfilePhoto();
-
-            };
+            }
 
 
-        reader.readAsDataURL(
-            file
-        );
+            const reader =
+                new FileReader();
 
-    }
-);
+
+            reader.onload =
+                () => {
+
+                    const key =
+                        getUserPhotoKey();
+
+
+                    if (!key) {
+                        return;
+                    }
+
+
+                    localStorage.setItem(
+                        key,
+                        reader.result
+                    );
+
+
+                    loadProfilePhoto();
+
+                };
+
+
+            reader.readAsDataURL(
+                file
+            );
+
+        }
+    );
+
+}
 
 
 function loadProfilePhoto() {
 
+    const key =
+        getUserPhotoKey();
+
+
     const photo =
-        localStorage.getItem(
-            "studyflow_profile_photo"
-        );
+        key
+            ? localStorage.getItem(
+                key
+            )
+            : null;
 
 
     const profileImage =
@@ -2253,6 +3181,18 @@ function loadProfilePhoto() {
         document.getElementById(
             "headerProfileInitial"
         );
+
+
+    if (
+        !profileImage ||
+        !profileInitial ||
+        !headerImage ||
+        !headerInitial
+    ) {
+
+        return;
+
+    }
 
 
     if (photo) {
@@ -2284,12 +3224,22 @@ function loadProfilePhoto() {
 
     else {
 
+        profileImage.removeAttribute(
+            "src"
+        );
+
+
         profileImage.style.display =
             "none";
 
 
         profileInitial.style.display =
             "flex";
+
+
+        headerImage.removeAttribute(
+            "src"
+        );
 
 
         headerImage.style.display =
@@ -2312,13 +3262,25 @@ document
         "click",
         () => {
 
-            localStorage.removeItem(
-                "studyflow_profile_photo"
-            );
+            const key =
+                getUserPhotoKey();
 
 
-            profilePhotoInput.value =
-                "";
+            if (key) {
+
+                localStorage.removeItem(
+                    key
+                );
+
+            }
+
+
+            if (profilePhotoInput) {
+
+                profilePhotoInput.value =
+                    "";
+
+            }
 
 
             loadProfilePhoto();
@@ -2331,6 +3293,18 @@ document
    MÚSICA / SPOTIFY
 ===================================================== */
 
+function getPlaylistKey() {
+
+    if (!currentUser) {
+        return null;
+    }
+
+
+    return `studyflow_playlist_${currentUser.uid}`;
+
+}
+
+
 document
     .getElementById(
         "addPlaylist"
@@ -2338,6 +3312,11 @@ document
     .addEventListener(
         "click",
         () => {
+
+            if (!currentUser) {
+                return;
+            }
+
 
             const input =
                 document.getElementById(
@@ -2377,13 +3356,23 @@ document
             }
 
 
+            const key =
+                getPlaylistKey();
+
+
+            if (!key) {
+                return;
+            }
+
+
             localStorage.setItem(
-                "studyflow_playlist",
+                key,
                 playlistId
             );
 
 
-            input.value = "";
+            input.value =
+                "";
 
 
             loadPlaylist();
@@ -2399,13 +3388,14 @@ function extractSpotifyPlaylistId(
     try {
 
         const parsed =
-            new URL(url);
+            new URL(
+                url
+            );
 
 
         if (
-            !parsed.hostname.includes(
-                "spotify.com"
-            )
+            parsed.hostname !==
+            "open.spotify.com"
         ) {
 
             return null;
@@ -2435,9 +3425,22 @@ function extractSpotifyPlaylistId(
         }
 
 
-        return parts[
-            index + 1
-        ].split("?")[0];
+        const playlistId =
+            parts[index + 1];
+
+
+        if (
+            !/^[A-Za-z0-9]{22}$/.test(
+                playlistId
+            )
+        ) {
+
+            return null;
+
+        }
+
+
+        return playlistId;
 
     }
 
@@ -2458,10 +3461,21 @@ function loadPlaylist() {
         );
 
 
+    if (!container) {
+        return;
+    }
+
+
+    const key =
+        getPlaylistKey();
+
+
     const playlistId =
-        localStorage.getItem(
-            "studyflow_playlist"
-        );
+        key
+            ? localStorage.getItem(
+                key
+            )
+            : null;
 
 
     if (!playlistId) {
@@ -2474,21 +3488,27 @@ function loadPlaylist() {
     }
 
 
-    container.innerHTML = `
+    const iframe =
+        document.createElement(
+            "iframe"
+        );
 
-        <iframe
-            src="https://open.spotify.com/embed/playlist/${playlistId}"
-            allow="
-                autoplay;
-                clipboard-write;
-                encrypted-media;
-                fullscreen;
-                picture-in-picture
-            "
-            loading="lazy"
-        ></iframe>
 
-    `;
+    iframe.src =
+        `https://open.spotify.com/embed/playlist/${playlistId}`;
+
+
+    iframe.allow =
+        "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+
+
+    iframe.loading =
+        "lazy";
+
+
+    container.replaceChildren(
+        iframe
+    );
 
 }
 
@@ -2630,36 +3650,40 @@ function escapeHTML(
 ===================================================== */
 
 document
-    .querySelectorAll(".modal")
-    .forEach(modal => {
+    .querySelectorAll(
+        ".modal"
+    )
+    .forEach(
+        modal => {
 
-        modal.addEventListener(
-            "click",
-            event => {
+            modal.addEventListener(
+                "click",
+                event => {
 
-                if (
-                    event.target ===
-                    modal
-                ) {
+                    if (
+                        event.target ===
+                        modal
+                    ) {
 
-                    modal.classList.remove(
-                        "active"
-                    );
-
-
-                    editingTaskId =
-                        null;
+                        modal.classList.remove(
+                            "active"
+                        );
 
 
-                    editingEventId =
-                        null;
+                        editingTaskId =
+                            null;
+
+
+                        editingEventId =
+                            null;
+
+                    }
 
                 }
+            );
 
-            }
-        );
-
-    });
+        }
+    );
 
 
 /* =====================================================
@@ -2670,28 +3694,36 @@ updateDate();
 
 loadTheme();
 
-loadProfilePhoto();
 
-loadPlaylist();
-
-renderTasks();
-
-renderCalendar();
-
-renderSelectedDay();
-
-updateNextEvent();
-
-/* ================================
+/* =====================================================
    TELA DE ABERTURA
-================================ */
+===================================================== */
 
-window.addEventListener("load", () => {
-    const splashScreen = document.getElementById("splashScreen");
+window.addEventListener(
+    "load",
+    () => {
 
-    if (!splashScreen) return;
+        const splashScreen =
+            document.getElementById(
+                "splashScreen"
+            );
 
-    setTimeout(() => {
-        splashScreen.classList.add("hide");
-    }, 1800);
-});
+
+        if (!splashScreen) {
+            return;
+        }
+
+
+        setTimeout(
+            () => {
+
+                splashScreen.classList.add(
+                    "hide"
+                );
+
+            },
+            1800
+        );
+
+    }
+);
