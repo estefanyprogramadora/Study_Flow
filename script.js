@@ -1,6 +1,6 @@
 /* =====================================================
    STUDYFLOW
-   AUTENTICAÇÃO + FIREBASE
+   SCRIPT PRINCIPAL
 ===================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
@@ -32,95 +32,297 @@ const firebaseConfig = {
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-const googleProvider = new GoogleAuthProvider();
 
-let currentUser = null;
-let authMode = "login";
+const auth = getAuth(firebaseApp);
+
+const googleProvider =
+    new GoogleAuthProvider();
 
 
 /* =====================================================
-   ELEMENTOS DA AUTENTICAÇÃO
+   ESTADO GLOBAL
 ===================================================== */
 
-const authScreen = document.getElementById("authScreen");
-const authForm = document.getElementById("authForm");
+let currentUser = null;
 
-const authName = document.getElementById("authName");
-const authNameContainer = document.getElementById("authNameContainer");
+let authMode = "login";
 
-const authEmail = document.getElementById("authEmail");
-const authPassword = document.getElementById("authPassword");
+let tasks = [];
 
-const emailSubmit = document.getElementById("emailSubmit");
+let events = [];
 
-const googleLogin = document.getElementById("googleLogin");
+let currentFilter = "all";
 
-const toggleAuthMode = document.getElementById("toggleAuthMode");
-const authModeText = document.getElementById("authModeText");
+let currentCalendarDate = new Date();
 
-const authMessage = document.getElementById("authMessage");
+let selectedDate = new Date();
+
+let editingTaskId = null;
+
+let editingEventId = null;
 
 
 /* =====================================================
-   MENSAGEM
+   FUNÇÕES AUXILIARES
+===================================================== */
+
+const $ = id =>
+    document.getElementById(id);
+
+
+function safeAddEventListener(
+    element,
+    event,
+    callback
+) {
+
+    if (!element) {
+        return;
+    }
+
+    element.addEventListener(
+        event,
+        callback
+    );
+}
+
+
+function escapeHTML(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        text ?? "";
+
+    return div.innerHTML;
+}
+
+
+function capitalize(text) {
+
+    if (!text) {
+        return "";
+    }
+
+    return (
+        text.charAt(0).toUpperCase() +
+        text.slice(1)
+    );
+}
+
+
+function dateToString(date) {
+
+    const year =
+        date.getFullYear();
+
+    const month =
+        String(
+            date.getMonth() + 1
+        ).padStart(2, "0");
+
+    const day =
+        String(
+            date.getDate()
+        ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+
+function createDateString(
+    year,
+    month,
+    day
+) {
+
+    return dateToString(
+        new Date(
+            year,
+            month,
+            day
+        )
+    );
+}
+
+
+function formatDate(dateString) {
+
+    if (!dateString) {
+        return "Sem prazo";
+    }
+
+    const date =
+        new Date(
+            `${dateString}T00:00:00`
+        );
+
+    return date.toLocaleDateString(
+        "pt-BR"
+    );
+}
+
+
+function isToday(dateString) {
+
+    return (
+        dateString ===
+        dateToString(
+            new Date()
+        )
+    );
+}
+
+
+function isSameDate(
+    date1,
+    date2
+) {
+
+    return date1 === date2;
+}
+
+
+/* =====================================================
+   ELEMENTOS
+===================================================== */
+
+const authScreen =
+    $("authScreen");
+
+const authForm =
+    $("authForm");
+
+const authName =
+    $("authName");
+
+const authNameContainer =
+    $("authNameContainer");
+
+const authEmail =
+    $("authEmail");
+
+const authPassword =
+    $("authPassword");
+
+const emailSubmit =
+    $("emailSubmit");
+
+const googleLogin =
+    $("googleLogin");
+
+const toggleAuthMode =
+    $("toggleAuthMode");
+
+const authModeText =
+    $("authModeText");
+
+const authMessage =
+    $("authMessage");
+
+
+/* =====================================================
+   MENSAGEM DE AUTENTICAÇÃO
 ===================================================== */
 
 function showAuthMessage(message) {
+
     if (authMessage) {
-        authMessage.textContent = message;
+        authMessage.textContent =
+            message;
     }
 }
 
 
 /* =====================================================
-   BOTÃO ENTRAR / CRIAR CONTA
+   BOTÃO DE LOGIN
 ===================================================== */
 
 function updateAuthButton() {
 
-    const email = authEmail.value.trim();
-    const password = authPassword.value.trim();
-    const name = authName.value.trim();
+    if (
+        !authEmail ||
+        !authPassword ||
+        !emailSubmit
+    ) {
+        return;
+    }
+
+    const email =
+        authEmail.value.trim();
+
+    const password =
+        authPassword.value;
+
+    const name =
+        authName
+            ? authName.value.trim()
+            : "";
+
 
     if (authMode === "login") {
 
-        emailSubmit.disabled = !(email && password);
+        emailSubmit.disabled =
+            !email ||
+            password.length === 0;
 
-    } else {
-
-        emailSubmit.disabled = !(
-            name &&
-            email &&
-            password.length >= 6
-        );
+        return;
     }
+
+
+    emailSubmit.disabled =
+        !name ||
+        !email ||
+        password.length < 6;
 }
 
 
 /* =====================================================
-   MODO LOGIN / CADASTRO
+   ALTERAR LOGIN / CADASTRO
 ===================================================== */
 
 function updateAuthMode() {
 
-    const register = authMode === "register";
+    const register =
+        authMode === "register";
 
-    authNameContainer.style.display = register
-        ? "block"
-        : "none";
 
-    emailSubmit.textContent = register
-        ? "Criar conta"
-        : "Entrar";
+    if (authNameContainer) {
 
-    authModeText.textContent = register
-        ? "Já possui uma conta?"
-        : "Não possui uma conta?";
+        authNameContainer.style.display =
+            register
+                ? "block"
+                : "none";
+    }
 
-    toggleAuthMode.textContent = register
-        ? "Entrar"
-        : "Criar conta";
+
+    if (emailSubmit) {
+
+        emailSubmit.textContent =
+            register
+                ? "Criar conta"
+                : "Entrar";
+    }
+
+
+    if (authModeText) {
+
+        authModeText.textContent =
+            register
+                ? "Já possui uma conta?"
+                : "Não possui uma conta?";
+    }
+
+
+    if (toggleAuthMode) {
+
+        toggleAuthMode.textContent =
+            register
+                ? "Entrar"
+                : "Criar conta";
+    }
+
 
     showAuthMessage("");
 
@@ -129,263 +331,223 @@ function updateAuthMode() {
 
 
 /* =====================================================
-   CAMPOS
+   AUTENTICAÇÃO POR E-MAIL
 ===================================================== */
 
-authEmail.addEventListener(
+safeAddEventListener(
+    authEmail,
     "input",
     updateAuthButton
 );
 
-authPassword.addEventListener(
+safeAddEventListener(
+    authPassword,
     "input",
     updateAuthButton
 );
 
-authName.addEventListener(
+safeAddEventListener(
+    authName,
     "input",
     updateAuthButton
 );
 
 
-/* =====================================================
-   ALTERAR ENTRE LOGIN E CADASTRO
-===================================================== */
+safeAddEventListener(
+    toggleAuthMode,
+    "click",
+    () => {
 
-toggleAuthMode.addEventListener("click", () => {
+        authMode =
+            authMode === "login"
+                ? "register"
+                : "login";
 
-    authMode =
-        authMode === "login"
-            ? "register"
-            : "login";
-
-    updateAuthMode();
-});
-
-/* =====================================================
-   LOGIN / CADASTRO COM E-MAIL
-===================================================== */
-
-authForm.addEventListener("submit", async event => {
-
-    event.preventDefault();
-
-    const email = authEmail.value.trim();
-    const password = authPassword.value;
-    const name = authName.value.trim();
-
-    if (!email || !password) {
-        return;
+        updateAuthMode();
     }
+);
 
-    emailSubmit.disabled = true;
-    showAuthMessage("");
 
-    try {
+/* =====================================================
+   LOGIN / CADASTRO
+===================================================== */
 
-        /* =========================================
-           LOGIN
-        ========================================= */
+safeAddEventListener(
+    authForm,
+    "submit",
+    async event => {
 
-        if (authMode === "login") {
+        event.preventDefault();
 
-            const credential =
+
+        const email =
+            authEmail.value.trim();
+
+        const password =
+            authPassword.value;
+
+        const name =
+            authName
+                ? authName.value.trim()
+                : "";
+
+
+        if (!email || !password) {
+            return;
+        }
+
+
+        emailSubmit.disabled =
+            true;
+
+        showAuthMessage("");
+
+
+        try {
+
+            if (authMode === "login") {
+
                 await signInWithEmailAndPassword(
                     auth,
                     email,
                     password
                 );
 
-            currentUser = credential.user;
-
-            /* Fecha a tela de login */
-            if (authScreen) {
-                authScreen.style.display = "none";
+                return;
             }
 
-            /* Carrega os dados do usuário */
-            loadUserData(currentUser);
-            loadUserProfile(currentUser);
-            loadProfilePhoto();
-            loadPlaylist();
 
-            renderTasks();
-            renderCalendar();
-            renderSelectedDay();
-            updateNextEvent();
+            if (!name) {
 
-            return;
-        }
+                showAuthMessage(
+                    "Digite seu nome."
+                );
 
-
-        /* =========================================
-           CADASTRO
-        ========================================= */
-
-        if (!name) {
-
-            showAuthMessage(
-                "Digite seu nome."
-            );
-
-            emailSubmit.disabled = false;
-            return;
-        }
-
-
-        if (password.length < 6) {
-
-            showAuthMessage(
-                "A senha precisa ter pelo menos 6 caracteres."
-            );
-
-            emailSubmit.disabled = false;
-            return;
-        }
-
-
-        const credential =
-            await createUserWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
-
-
-        /* Salva o nome */
-        await updateProfile(
-            credential.user,
-            {
-                displayName: name
+                return;
             }
-        );
 
 
-        /* Define o usuário atual */
-        currentUser = credential.user;
+            if (password.length < 6) {
+
+                showAuthMessage(
+                    "A senha precisa ter pelo menos 6 caracteres."
+                );
+
+                return;
+            }
 
 
-        /* =========================================
-           ENTRAR AUTOMATICAMENTE NO APP
-        ========================================= */
+            const credential =
+                await createUserWithEmailAndPassword(
+                    auth,
+                    email,
+                    password
+                );
 
-        if (authScreen) {
-            authScreen.style.display = "none";
+
+            await updateProfile(
+                credential.user,
+                {
+                    displayName: name
+                }
+            );
+
+
+            await credential.user.reload();
+
+
+        } catch (error) {
+
+            console.error(
+                "Erro de autenticação:",
+                error
+            );
+
+
+            switch (error.code) {
+
+                case "auth/user-not-found":
+
+                    showAuthMessage(
+                        "Usuário não encontrado."
+                    );
+
+                    break;
+
+
+                case "auth/invalid-credential":
+
+                    showAuthMessage(
+                        "Usuário não encontrado ou senha incorreta."
+                    );
+
+                    break;
+
+
+                case "auth/wrong-password":
+
+                    showAuthMessage(
+                        "Senha incorreta."
+                    );
+
+                    break;
+
+
+                case "auth/email-already-in-use":
+
+                    showAuthMessage(
+                        "Esse e-mail já possui uma conta."
+                    );
+
+                    break;
+
+
+                case "auth/invalid-email":
+
+                    showAuthMessage(
+                        "Digite um e-mail válido."
+                    );
+
+                    break;
+
+
+                case "auth/weak-password":
+
+                    showAuthMessage(
+                        "A senha precisa ter pelo menos 6 caracteres."
+                    );
+
+                    break;
+
+
+                default:
+
+                    showAuthMessage(
+                        "Não foi possível acessar a conta."
+                    );
+            }
+
+
+        } finally {
+
+            updateAuthButton();
         }
-
-
-        const splashScreen =
-            document.getElementById("splashScreen");
-
-        if (splashScreen) {
-            splashScreen.classList.add("hide");
-        }
-
-
-        /* Carrega o perfil */
-        loadUserProfile(currentUser);
-
-
-        /* Carrega os dados */
-        loadUserData(currentUser);
-        loadProfilePhoto();
-        loadPlaylist();
-
-        renderTasks();
-        renderCalendar();
-        renderSelectedDay();
-        updateNextEvent();
-
-
-        showAuthMessage("");
-
-    } catch (error) {
-
-        console.error(
-            "Erro de autenticação:",
-            error
-        );
-
-
-        if (
-            error.code ===
-            "auth/user-not-found"
-        ) {
-
-            showAuthMessage(
-                "Usuário não encontrado."
-            );
-
-        } else if (
-            error.code ===
-            "auth/invalid-credential"
-        ) {
-
-            showAuthMessage(
-                "Usuário não encontrado ou senha incorreta."
-            );
-
-        } else if (
-            error.code ===
-            "auth/wrong-password"
-        ) {
-
-            showAuthMessage(
-                "Senha incorreta."
-            );
-
-        } else if (
-            error.code ===
-            "auth/email-already-in-use"
-        ) {
-
-            showAuthMessage(
-                "Esse e-mail já possui uma conta."
-            );
-
-        } else if (
-            error.code ===
-            "auth/invalid-email"
-        ) {
-
-            showAuthMessage(
-                "Digite um e-mail válido."
-            );
-
-        } else if (
-            error.code ===
-            "auth/weak-password"
-        ) {
-
-            showAuthMessage(
-                "A senha precisa ter pelo menos 6 caracteres."
-            );
-
-        } else {
-
-            showAuthMessage(
-                "Não foi possível acessar a conta."
-            );
-        }
-
-    } finally {
-
-        updateAuthButton();
-
     }
-});
+);
+
 
 /* =====================================================
-   LOGIN COM GOOGLE
+   GOOGLE
 ===================================================== */
 
 async function loginWithGoogle() {
 
-    try {
+    showAuthMessage(
+        "Abrindo login do Google..."
+    );
 
-        showAuthMessage(
-            "Abrindo login do Google..."
-        );
+
+    try {
 
         await signInWithPopup(
             auth,
@@ -428,53 +590,10 @@ async function loginWithGoogle() {
 }
 
 
-googleLogin.addEventListener(
+safeAddEventListener(
+    googleLogin,
     "click",
     loginWithGoogle
-);
-
-
-/* =====================================================
-   ESTADO DA AUTENTICAÇÃO
-===================================================== */
-
-onAuthStateChanged(
-    auth,
-    user => {
-
-        currentUser = user;
-
-        if (user) {
-
-            if (authScreen) {
-                authScreen.style.display = "none";
-            }
-
-            loadUserData(user);
-            loadUserProfile(user);
-            loadProfilePhoto();
-            loadPlaylist();
-
-            renderTasks();
-            renderCalendar();
-            renderSelectedDay();
-            updateNextEvent();
-
-        } else {
-
-            if (authScreen) {
-                authScreen.style.display = "flex";
-            }
-
-            tasks = [];
-            events = [];
-
-            renderTasks();
-            renderCalendar();
-            renderSelectedDay();
-            updateNextEvent();
-        }
-    }
 );
 
 
@@ -482,7 +601,43 @@ onAuthStateChanged(
    PERFIL
 ===================================================== */
 
+function updateProfileInitial(name) {
+
+    const initial =
+        name
+            ?.trim()
+            .charAt(0)
+            .toUpperCase() || "S";
+
+
+    const profileInitial =
+        $("profileInitial");
+
+    const headerInitial =
+        $("headerProfileInitial");
+
+
+    if (profileInitial) {
+
+        profileInitial.textContent =
+            initial;
+    }
+
+
+    if (headerInitial) {
+
+        headerInitial.textContent =
+            initial;
+    }
+}
+
+
 function loadUserProfile(user) {
+
+    if (!user) {
+        return;
+    }
+
 
     const name =
         user.displayName ||
@@ -492,298 +647,107 @@ function loadUserProfile(user) {
         user.email ||
         "Conta StudyFlow";
 
+
     const profileName =
-        document.getElementById(
-            "profileName"
-        );
+        $("profileName");
 
     const profileEmail =
-        document.getElementById(
-            "profileEmail"
-        );
+        $("profileEmail");
 
     const welcomeName =
-        document.getElementById(
-            "welcomeName"
-        );
+        $("welcomeName");
 
 
     if (profileName) {
-        profileName.textContent = name;
+
+        profileName.textContent =
+            name;
     }
+
 
     if (profileEmail) {
-        profileEmail.textContent = email;
+
+        profileEmail.textContent =
+            email;
     }
 
+
     if (welcomeName) {
-        welcomeName.textContent = name;
+
+        welcomeName.textContent =
+            name;
     }
+
 
     updateProfileInitial(name);
 }
 
 
 /* =====================================================
-   INICIAL DO PERFIL
-===================================================== */
-
-function updateProfileInitial(name) {
-
-    const initial =
-        name
-            .trim()
-            .charAt(0)
-            .toUpperCase() || "S";
-
-
-    const profileInitial =
-        document.getElementById(
-            "profileInitial"
-        );
-
-    const headerInitial =
-        document.getElementById(
-            "headerProfileInitial"
-        );
-
-
-    if (profileInitial) {
-        profileInitial.textContent =
-            initial;
-    }
-
-    if (headerInitial) {
-        headerInitial.textContent =
-            initial;
-    }
-}
-
-
-/* =====================================================
-   EDITAR NOME
-===================================================== */
-
-const editProfileName =
-    document.getElementById(
-        "editProfileName"
-    );
-
-if (editProfileName) {
-
-    editProfileName.addEventListener(
-        "click",
-        async () => {
-
-            if (!currentUser) {
-                return;
-            }
-
-
-            const newName = prompt(
-                "Digite seu novo nome:",
-                currentUser.displayName || ""
-            );
-
-
-            if (
-                !newName ||
-                !newName.trim()
-            ) {
-                return;
-            }
-
-
-            try {
-
-                await updateProfile(
-                    currentUser,
-                    {
-                        displayName:
-                            newName.trim()
-                    }
-                );
-
-
-                await currentUser.reload();
-
-                loadUserProfile(
-                    currentUser
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "Erro ao alterar nome:",
-                    error
-                );
-
-                alert(
-                    "Não foi possível alterar o nome."
-                );
-            }
-        }
-    );
-}
-
-
-/* =====================================================
-   LOGOUT
-===================================================== */
-
-const logoutButton =
-    document.getElementById(
-        "logoutButton"
-    );
-
-if (logoutButton) {
-
-    logoutButton.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                await signOut(auth);
-
-            } catch (error) {
-
-                console.error(
-                    "Erro ao sair:",
-                    error
-                );
-
-                alert(
-                    "Não foi possível sair da conta."
-                );
-            }
-        }
-    );
-}
-
-
-/* =====================================================
-   DATA + ALL OTHER APP CODE
-===================================================== */
-
-/* =====================================================
    DADOS
 ===================================================== */
 
-let tasks = [];
+function getTasksKey() {
 
-let events = [];
-
-let currentFilter = "all";
-
-let currentCalendarDate =
-    new Date();
-
-let selectedDate =
-    new Date();
-
-let editingTaskId = null;
-
-let editingEventId = null;
+    return currentUser
+        ? `studyflow_tasks_${currentUser.uid}`
+        : null;
+}
 
 
-/* =====================================================
-   ELEMENTOS DO APLICATIVO
-===================================================== */
+function getEventsKey() {
 
-const taskModal =
-    document.getElementById(
-        "taskModal"
-    );
+    return currentUser
+        ? `studyflow_events_${currentUser.uid}`
+        : null;
+}
 
-
-const eventModal =
-    document.getElementById(
-        "eventModal"
-    );
-
-
-const taskForm =
-    document.getElementById(
-        "taskForm"
-    );
-
-
-const eventForm =
-    document.getElementById(
-        "eventForm"
-    );
-
-
-const taskList =
-    document.getElementById(
-        "taskList"
-    );
-
-
-const homeTaskList =
-    document.getElementById(
-        "homeTaskList"
-    );
-
-
-const emptyTasks =
-    document.getElementById(
-        "emptyTasks"
-    );
-
-
-/* =====================================================
-   SALVAR TAREFAS
-===================================================== */
 
 function saveTasks() {
 
-    if (!currentUser) {
+    const key =
+        getTasksKey();
+
+    if (!key) {
         return;
     }
 
-
     localStorage.setItem(
-        `studyflow_tasks_${currentUser.uid}`,
+        key,
         JSON.stringify(tasks)
     );
-
 }
 
-
-/* =====================================================
-   SALVAR EVENTOS
-===================================================== */
 
 function saveEvents() {
 
-    if (!currentUser) {
+    const key =
+        getEventsKey();
+
+    if (!key) {
         return;
     }
 
-
     localStorage.setItem(
-        `studyflow_events_${currentUser.uid}`,
+        key,
         JSON.stringify(events)
     );
-
 }
 
 
-/* =====================================================
-   CARREGAR DADOS DO USUÁRIO
-===================================================== */
+function loadUserData(user) {
 
-function loadUserData(
-    user
-) {
+    if (!user) {
+        tasks = [];
+        events = [];
+        return;
+    }
+
 
     const storedTasks =
         localStorage.getItem(
             `studyflow_tasks_${user.uid}`
         );
-
 
     const storedEvents =
         localStorage.getItem(
@@ -795,35 +759,33 @@ function loadUserData(
 
         tasks =
             storedTasks
-                ? JSON.parse(
-                    storedTasks
-                )
+                ? JSON.parse(storedTasks)
                 : [];
-
 
         events =
             storedEvents
-                ? JSON.parse(
-                    storedEvents
-                )
+                ? JSON.parse(storedEvents)
                 : [];
 
-    }
 
-    catch (error) {
+        if (!Array.isArray(tasks)) {
+            tasks = [];
+        }
+
+        if (!Array.isArray(events)) {
+            events = [];
+        }
+
+    } catch (error) {
 
         console.error(
-            "Não foi possível carregar os dados da conta:",
+            "Erro ao carregar dados:",
             error
         );
 
-
         tasks = [];
-
         events = [];
-
     }
-
 }
 
 
@@ -831,148 +793,97 @@ function loadUserData(
    NAVEGAÇÃO
 ===================================================== */
 
-document
-    .querySelectorAll(
-        ".nav-item, [data-screen]"
-    )
-    .forEach(
-        button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    if (
-                        button.dataset.screen
-                    ) {
-
-                        showScreen(
-                            button.dataset.screen
-                        );
-
-                    }
-
-                }
-            );
-
-        }
-    );
-
-
-function showScreen(
-    screenName
-) {
+function showScreen(screenName) {
 
     document
-        .querySelectorAll(
-            ".screen"
-        )
-        .forEach(
-            screen => {
+        .querySelectorAll(".screen")
+        .forEach(screen => {
 
-                screen.classList.remove(
-                    "active"
-                );
-
-            }
-        );
+            screen.classList.toggle(
+                "active",
+                screen.id === screenName
+            );
+        });
 
 
     document
         .querySelectorAll(
             ".nav-item"
         )
-        .forEach(
-            button => {
+        .forEach(button => {
 
-                button.classList.remove(
-                    "active"
-                );
-
-            }
-        );
-
-
-    const selectedScreen =
-        document.getElementById(
-            screenName
-        );
+            button.classList.toggle(
+                "active",
+                button.dataset.screen ===
+                screenName
+            );
+        });
 
 
-    if (selectedScreen) {
-
-        selectedScreen.classList.add(
-            "active"
-        );
-
-    }
-
-
-    document
-        .querySelectorAll(
-            `.nav-item[data-screen="${screenName}"]`
-        )
-        .forEach(
-            button => {
-
-                button.classList.add(
-                    "active"
-                );
-
-            }
-        );
-
-
-    if (
-        screenName ===
-        "calendar"
-    ) {
+    if (screenName === "calendar") {
 
         renderCalendar();
-
         renderSelectedDay();
-
     }
 
+
+    if (screenName === "progress") {
+
+        updateStats();
+        updateStudyTotals();
+    }
+
+    if (screenName === "subjects") {
+    updateSubjects();
+    }
 }
 
 
+document
+    .querySelectorAll(
+        ".nav-item[data-screen], [data-screen]"
+    )
+    .forEach(button => {
+
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
+
+                const screen =
+                    button.dataset.screen;
+
+                if (screen) {
+                    showScreen(screen);
+                }
+            }
+        );
+    });
+
+
 /* =====================================================
-   DATA ATUAL
+   DATA
 ===================================================== */
 
 function updateDate() {
 
     const element =
-        document.getElementById(
-            "currentDate"
-        );
-
+        $("currentDate");
 
     if (!element) {
         return;
     }
 
 
-    const today =
-        new Date();
-
-
     element.textContent =
-        today.toLocaleDateString(
+        new Date().toLocaleDateString(
             "pt-BR",
             {
-                weekday:
-                    "long",
-
-                day:
-                    "numeric",
-
-                month:
-                    "long"
+                weekday: "long",
+                day: "numeric",
+                month: "long"
             }
         );
-
 }
 
 
@@ -980,112 +891,19 @@ function updateDate() {
    TAREFAS
 ===================================================== */
 
-function renderTasks() {
+function getPriorityLabel(priority) {
 
-    if (!taskList || !homeTaskList) {
-        return;
+    if (priority === "high") {
+        return "alta";
     }
 
-
-    taskList.innerHTML = "";
-
-    homeTaskList.innerHTML = "";
-
-
-    let filtered =
-        tasks;
-
-
-    if (
-        currentFilter ===
-        "pending"
-    ) {
-
-        filtered =
-            tasks.filter(
-                task =>
-                    !task.completed
-            );
-
+    if (priority === "low") {
+        return "baixa";
     }
 
-
-    if (
-        currentFilter ===
-        "completed"
-    ) {
-
-        filtered =
-            tasks.filter(
-                task =>
-                    task.completed
-            );
-
-    }
-
-
-    if (
-        emptyTasks
-    ) {
-
-        emptyTasks.style.display =
-            filtered.length === 0
-                ? "block"
-                : "none";
-
-    }
-
-
-    filtered.forEach(
-        task => {
-
-            taskList.appendChild(
-                createTaskElement(
-                    task
-                )
-            );
-
-        }
-    );
-
-
-    tasks
-        .filter(
-            task =>
-                !task.completed
-        )
-        .slice(
-            0,
-            4
-        )
-        .forEach(
-            task => {
-
-                homeTaskList.appendChild(
-                    createTaskElement(
-                        task,
-                        true
-                    )
-                );
-
-            }
-        );
-
-
-    updateStats();
-
-    renderCalendar();
-
-    renderSelectedDay();
-
-    updateNextEvent();
-
+    return "normal";
 }
 
-
-/* =====================================================
-   ELEMENTO DE TAREFA
-===================================================== */
 
 function createTaskElement(
     task,
@@ -1093,52 +911,28 @@ function createTaskElement(
 ) {
 
     const element =
-        document.createElement(
-            "div"
-        );
+        document.createElement("div");
 
 
     element.className =
         "task";
 
 
-    if (
-        task.completed
-    ) {
-
-        element.classList.add(
-            "completed"
-        );
-
+    if (task.completed) {
+        element.classList.add("completed");
     }
 
 
-    const priorityClass =
-        `priority-${task.priority}`;
-
-
-    const priorityLabel =
-        getPriorityLabel(
-            task.priority
-        );
-
-
     element.innerHTML = `
-
         <span
-            class="priority-dot ${priorityClass}"
-            title="Prioridade ${priorityLabel}"
+            class="priority-dot priority-${task.priority}"
+            title="Prioridade ${getPriorityLabel(task.priority)}"
         ></span>
 
         <button
             class="task-check"
             type="button"
-            data-id="${task.id}"
-            title="${
-                task.completed
-                    ? "Desmarcar tarefa"
-                    : "Concluir tarefa"
-            }"
+            title="${task.completed ? "Desmarcar tarefa" : "Concluir tarefa"}"
         >
             ${task.completed ? "✓" : ""}
         </button>
@@ -1146,25 +940,16 @@ function createTaskElement(
         <div class="task-info">
 
             <h3>
-                ${escapeHTML(
-                    task.title
-                )}
+                ${escapeHTML(task.title)}
             </h3>
 
             <p>
-                ${escapeHTML(
-                    task.subject
-                )}
-
+                ${escapeHTML(task.subject)}
                 ${
                     task.date
-                        ? " • " +
-                          formatDate(
-                              task.date
-                          )
+                        ? ` • ${formatDate(task.date)}`
                         : ""
                 }
-
             </p>
 
         </div>
@@ -1178,7 +963,6 @@ function createTaskElement(
                         <button
                             class="edit-task"
                             type="button"
-                            data-id="${task.id}"
                             title="Editar tarefa"
                         >
                             ✎
@@ -1187,7 +971,6 @@ function createTaskElement(
                         <button
                             class="delete-task"
                             type="button"
-                            data-id="${task.id}"
                             title="Excluir tarefa"
                         >
                             ×
@@ -1196,186 +979,207 @@ function createTaskElement(
                     </div>
                 `
         }
-
     `;
 
 
-    element
-        .querySelector(
-            ".task-check"
-        )
-        .addEventListener(
-            "click",
-            () => {
-
-                toggleTask(
-                    task.id
-                );
-
-            }
-        );
+    safeAddEventListener(
+        element.querySelector(".task-check"),
+        "click",
+        () => toggleTask(task.id)
+    );
 
 
     if (!compact) {
 
-        element
-            .querySelector(
-                ".edit-task"
-            )
-            .addEventListener(
-                "click",
-                () => {
-
-                    editTask(
-                        task.id
-                    );
-
-                }
-            );
+        safeAddEventListener(
+            element.querySelector(".edit-task"),
+            "click",
+            () => editTask(task.id)
+        );
 
 
-        element
-            .querySelector(
-                ".delete-task"
-            )
-            .addEventListener(
-                "click",
-                () => {
-
-                    deleteTask(
-                        task.id
-                    );
-
-                }
-            );
-
+        safeAddEventListener(
+            element.querySelector(".delete-task"),
+            "click",
+            () => deleteTask(task.id)
+        );
     }
 
 
     return element;
-
 }
 
 
-/* =====================================================
-   PRIORIDADE
-===================================================== */
+function renderTasks() {
 
-function getPriorityLabel(
-    priority
-) {
+    const taskList =
+        $("taskList");
 
-    if (
-        priority ===
-        "high"
-    ) {
+    const homeTaskList =
+        $("homeTaskList");
 
-        return "alta";
+    const emptyTasks =
+        $("emptyTasks");
 
+
+    if (!taskList || !homeTaskList) {
+        return;
     }
 
 
-    if (
-        priority ===
-        "low"
-    ) {
+    taskList.innerHTML = "";
+    homeTaskList.innerHTML = "";
 
-        return "baixa";
 
+    let filtered =
+        [...tasks];
+
+
+    if (currentFilter === "pending") {
+
+        filtered =
+            tasks.filter(
+                task => !task.completed
+            );
     }
 
 
-    return "normal";
+    if (currentFilter === "completed") {
+
+        filtered =
+            tasks.filter(
+                task => task.completed
+            );
+    }
+
+
+    if (emptyTasks) {
+
+        emptyTasks.style.display =
+            filtered.length === 0
+                ? "block"
+                : "none";
+    }
+
+
+    filtered.forEach(task => {
+
+        taskList.appendChild(
+            createTaskElement(task)
+        );
+    });
+
+
+    tasks
+        .filter(task => !task.completed)
+        .slice(0, 4)
+        .forEach(task => {
+
+            homeTaskList.appendChild(
+                createTaskElement(
+                    task,
+                    true
+                )
+            );
+        });
+
+
+    updateStats();
+    renderCalendar();
+    renderSelectedDay();
+    updateNextEvent();
+    updateSubjects();
+}
+
+function updateSubjects() {
+
+    const subjectCards = document.querySelectorAll(".subject-card");
+
+    subjectCards.forEach(card => {
+
+        const subject = card.dataset.subject;
+
+        if (!subject) return;
+
+        const subjectTasks = tasks.filter(task => {
+            return task.subject === subject;
+        });
+
+        const pendingTasks = subjectTasks.filter(task => {
+            return !task.completed;
+        });
+
+        const completedTasks = subjectTasks.filter(task => {
+            return task.completed;
+        });
+
+        const pendingElement = card.querySelector(".subject-pending");
+        const completedElement = card.querySelector(".subject-completed");
+
+        if (pendingElement) {
+            pendingElement.textContent =
+                `${pendingTasks.length} ${pendingTasks.length === 1 ? "tarefa pendente" : "tarefas pendentes"}`;
+        }
+
+        if (completedElement) {
+            completedElement.textContent =
+                `${completedTasks.length} ${completedTasks.length === 1 ? "concluída" : "concluídas"}`;
+        }
+
+    });
 
 }
 
-
-/* =====================================================
-   CONCLUIR TAREFA
-===================================================== */
-
-function toggleTask(
-    id
-) {
+function toggleTask(id) {
 
     tasks =
-        tasks.map(
-            task => {
+        tasks.map(task => {
 
-                if (
-                    task.id ===
-                    id
-                ) {
+            if (task.id === id) {
 
-                    return {
-                        ...task,
-                        completed:
-                            !task.completed
-                    };
-
-                }
-
-
-                return task;
-
+                return {
+                    ...task,
+                    completed:
+                        !task.completed
+                };
             }
-        );
+
+            return task;
+        });
 
 
     saveTasks();
-
     renderTasks();
-
 }
 
 
-/* =====================================================
-   EXCLUIR TAREFA
-===================================================== */
+function deleteTask(id) {
 
-function deleteTask(
-    id
-) {
-
-    const confirmed =
-        confirm(
+    if (
+        !confirm(
             "Deseja realmente excluir esta tarefa?"
-        );
-
-
-    if (!confirmed) {
+        )
+    ) {
         return;
     }
 
 
     tasks =
         tasks.filter(
-            task =>
-                task.id !==
-                id
+            task => task.id !== id
         );
 
 
     saveTasks();
-
     renderTasks();
-
 }
 
 
-/* =====================================================
-   EDITAR TAREFA
-===================================================== */
-
-function editTask(
-    id
-) {
+function editTask(id) {
 
     const task =
         tasks.find(
-            task =>
-                task.id ===
-                id
+            item => item.id === id
         );
 
 
@@ -1384,51 +1188,50 @@ function editTask(
     }
 
 
-    editingTaskId =
-        id;
+    editingTaskId = id;
 
 
-    document.getElementById(
-        "taskTitle"
-    ).value =
-        task.title;
+    const title =
+        $("taskTitle");
+
+    const subject =
+        $("taskSubject");
+
+    const date =
+        $("taskDate");
+
+    const priority =
+        $("taskPriority");
 
 
-    document.getElementById(
-        "taskSubject"
-    ).value =
-        task.subject;
+    if (title) title.value = task.title;
+    if (subject) subject.value = task.subject;
+    if (date) date.value = task.date || "";
+    if (priority) priority.value = task.priority;
 
 
-    document.getElementById(
-        "taskDate"
-    ).value =
-        task.date ||
-        "";
+    const modalTitle =
+        $("taskModalTitle");
+
+    const submit =
+        $("taskSubmitButton");
 
 
-    document.getElementById(
-        "taskPriority"
-    ).value =
-        task.priority;
+    if (modalTitle) {
+        modalTitle.textContent =
+            "Editar tarefa";
+    }
 
 
-    document.getElementById(
-        "taskModalTitle"
-    ).textContent =
-        "Editar tarefa";
+    if (submit) {
+        submit.textContent =
+            "Salvar alterações";
+    }
 
 
-    document.getElementById(
-        "taskSubmitButton"
-    ).textContent =
-        "Salvar alterações";
-
-
-    taskModal.classList.add(
+    $("taskModal")?.classList.add(
         "active"
     );
-
 }
 
 
@@ -1436,81 +1239,52 @@ function editTask(
    MODAL DE TAREFA
 ===================================================== */
 
-document
-    .getElementById(
-        "openTaskModal"
-    )
-    .addEventListener(
-        "click",
-        () => {
+safeAddEventListener(
+    $("openTaskModal"),
+    "click",
+    () => {
 
-            editingTaskId =
-                null;
+        editingTaskId = null;
 
+        $("taskForm")?.reset();
 
-            taskForm.reset();
+        $("taskModalTitle").textContent =
+            "Nova tarefa";
 
+        $("taskSubmitButton").textContent =
+            "Criar tarefa";
 
-            document.getElementById(
-                "taskModalTitle"
-            ).textContent =
-                "Nova tarefa";
-
-
-            document.getElementById(
-                "taskSubmitButton"
-            ).textContent =
-                "Criar tarefa";
+        $("taskModal")?.classList.add(
+            "active"
+        );
+    }
+);
 
 
-            taskModal.classList.add(
-                "active"
-            );
+safeAddEventListener(
+    $("closeTaskModal"),
+    "click",
+    () => {
 
-        }
-    );
+        $("taskModal")?.classList.remove(
+            "active"
+        );
 
+        editingTaskId = null;
 
-document
-    .getElementById(
-        "closeTaskModal"
-    )
-    .addEventListener(
-        "click",
-        () => {
+        $("taskForm")?.reset();
 
-            taskModal.classList.remove(
-                "active"
-            );
+        $("taskModalTitle").textContent =
+            "Nova tarefa";
 
-
-            editingTaskId =
-                null;
+        $("taskSubmitButton").textContent =
+            "Criar tarefa";
+    }
+);
 
 
-            taskForm.reset();
-
-
-            document.getElementById(
-                "taskModalTitle"
-            ).textContent =
-                "Nova tarefa";
-
-
-            document.getElementById(
-                "taskSubmitButton"
-            ).textContent =
-                "Criar tarefa";
-
-        }
-    );
-
-
-/* =====================================================
-   CRIAR / EDITAR TAREFA
-===================================================== */
-
-taskForm.addEventListener(
+safeAddEventListener(
+    $("taskForm"),
     "submit",
     event => {
 
@@ -1518,128 +1292,76 @@ taskForm.addEventListener(
 
 
         const title =
-            document
-                .getElementById(
-                    "taskTitle"
-                )
-                .value
-                .trim();
-
+            $("taskTitle")?.value.trim();
 
         const subject =
-            document
-                .getElementById(
-                    "taskSubject"
-                )
-                .value;
-
+            $("taskSubject")?.value;
 
         const date =
-            document
-                .getElementById(
-                    "taskDate"
-                )
-                .value;
-
+            $("taskDate")?.value;
 
         const priority =
-            document
-                .getElementById(
-                    "taskPriority"
-                )
-                .value;
+            $("taskPriority")?.value;
 
 
-        if (
-            editingTaskId !== null
-        ) {
-
-            tasks =
-                tasks.map(
-                    task => {
-
-                        if (
-                            task.id ===
-                            editingTaskId
-                        ) {
-
-                            return {
-                                ...task,
-
-                                title,
-
-                                subject,
-
-                                date,
-
-                                priority
-                            };
-
-                        }
-
-
-                        return task;
-
-                    }
-                );
-
+        if (!title) {
+            return;
         }
 
-        else {
 
-            const newTask = {
+        if (editingTaskId !== null) {
 
-                id:
-                    Date.now(),
+            tasks =
+                tasks.map(task => {
 
+                    if (
+                        task.id ===
+                        editingTaskId
+                    ) {
+
+                        return {
+                            ...task,
+                            title,
+                            subject,
+                            date,
+                            priority
+                        };
+                    }
+
+                    return task;
+                });
+
+        } else {
+
+            tasks.push({
+                id: Date.now(),
                 title,
-
                 subject,
-
                 date,
-
                 priority,
-
-                completed:
-                    false
-
-            };
-
-
-            tasks.push(
-                newTask
-            );
-
+                completed: false
+            });
         }
 
 
         saveTasks();
-
         renderTasks();
 
 
-        taskForm.reset();
-
-        taskModal.classList.remove(
+        $("taskForm")?.reset();
+        $("taskModal")?.classList.remove(
             "active"
         );
 
 
-        editingTaskId =
-            null;
+        editingTaskId = null;
 
 
-        document.getElementById(
-            "taskModalTitle"
-        ).textContent =
+        $("taskModalTitle").textContent =
             "Nova tarefa";
 
-
-        document.getElementById(
-            "taskSubmitButton"
-        ).textContent =
+        $("taskSubmitButton").textContent =
             "Criar tarefa";
-
     }
 );
 
@@ -1649,47 +1371,37 @@ taskForm.addEventListener(
 ===================================================== */
 
 document
-    .querySelectorAll(
-        ".filter"
-    )
-    .forEach(
-        button => {
+    .querySelectorAll(".filter")
+    .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                () => {
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
 
-                    document
-                        .querySelectorAll(
-                            ".filter"
-                        )
-                        .forEach(
-                            item => {
-
-                                item.classList.remove(
-                                    "active"
-                                );
-
-                            }
-                        );
-
-
-                    button.classList.add(
-                        "active"
+                document
+                    .querySelectorAll(".filter")
+                    .forEach(
+                        item =>
+                            item.classList.remove(
+                                "active"
+                            )
                     );
 
 
-                    currentFilter =
-                        button.dataset.filter;
+                button.classList.add(
+                    "active"
+                );
 
 
-                    renderTasks();
+                currentFilter =
+                    button.dataset.filter;
 
-                }
-            );
 
-        }
-    );
+                renderTasks();
+            }
+        );
+    });
 
 
 /* =====================================================
@@ -1700,15 +1412,13 @@ function updateStats() {
 
     const completed =
         tasks.filter(
-            task =>
-                task.completed
+            task => task.completed
         ).length;
 
 
     const pending =
         tasks.filter(
-            task =>
-                !task.completed
+            task => !task.completed
         ).length;
 
 
@@ -1720,117 +1430,43 @@ function updateStats() {
         total === 0
             ? 0
             : Math.round(
-                (
-                    completed /
-                    total
-                ) *
-                100
+                completed / total * 100
             );
 
 
-    const completedCount =
-        document.getElementById(
-            "completedCount"
+    const values = {
+        completedCount: completed,
+        pendingCount: pending,
+        dailyPercentage: `${percentage}%`,
+        progressCompleted: completed,
+        progressPending: pending,
+        progressTotal: `${percentage}%`,
+        largeProgressText:
+            `${completed} de ${total} tarefas concluídas`
+    };
+
+
+    Object.entries(values)
+        .forEach(
+            ([id, value]) => {
+
+                const element =
+                    $(id);
+
+                if (element) {
+                    element.textContent =
+                        value;
+                }
+            }
         );
 
 
-    const pendingCount =
-        document.getElementById(
-            "pendingCount"
-        );
+    const bar =
+        $("largeProgressBar");
 
-
-    const dailyPercentage =
-        document.getElementById(
-            "dailyPercentage"
-        );
-
-
-    const progressCompleted =
-        document.getElementById(
-            "progressCompleted"
-        );
-
-
-    const progressPending =
-        document.getElementById(
-            "progressPending"
-        );
-
-
-    const progressTotal =
-        document.getElementById(
-            "progressTotal"
-        );
-
-
-    const largeProgressText =
-        document.getElementById(
-            "largeProgressText"
-        );
-
-
-    const largeProgressBar =
-        document.getElementById(
-            "largeProgressBar"
-        );
-
-
-    const description =
-        document.getElementById(
-            "progressDescription"
-        );
-
-
-    if (completedCount) {
-        completedCount.textContent =
-            completed;
-    }
-
-
-    if (pendingCount) {
-        pendingCount.textContent =
-            pending;
-    }
-
-
-    if (dailyPercentage) {
-        dailyPercentage.textContent =
+    if (bar) {
+        bar.style.width =
             `${percentage}%`;
-    }
-
-
-    if (progressCompleted) {
-        progressCompleted.textContent =
-            completed;
-    }
-
-
-    if (progressPending) {
-        progressPending.textContent =
-            pending;
-    }
-
-
-    if (progressTotal) {
-        progressTotal.textContent =
-            `${percentage}%`;
-    }
-
-
-    if (largeProgressText) {
-
-        largeProgressText.textContent =
-            `${completed} de ${total} tarefas concluídas`;
-
-    }
-
-
-    if (largeProgressBar) {
-
-        largeProgressBar.style.width =
-            `${percentage}%`;
-
     }
 
 
@@ -1843,48 +1479,39 @@ function updateStats() {
     if (circle) {
 
         circle.style.background =
-            `
-                conic-gradient(
-                    var(--primary)
-                    ${percentage * 3.6}deg,
-
-                    var(--primary-light)
-                    ${percentage * 3.6}deg
-                )
-            `;
-
+            `conic-gradient(
+                var(--primary)
+                ${percentage * 3.6}deg,
+                var(--primary-light)
+                ${percentage * 3.6}deg
+            )`;
     }
 
 
-    if (description) {
+    const description =
+        $("progressDescription");
 
-        if (
-            total === 0
-        ) {
 
-            description.textContent =
-                "Você ainda não possui tarefas.";
-
-        }
-
-        else if (
-            percentage === 100
-        ) {
-
-            description.textContent =
-                "Todas as tarefas foram concluídas!";
-
-        }
-
-        else {
-
-            description.textContent =
-                `${pending} tarefa(s) ainda precisam de atenção.`;
-
-        }
-
+    if (!description) {
+        return;
     }
 
+
+    if (total === 0) {
+
+        description.textContent =
+            "Você ainda não possui tarefas.";
+
+    } else if (percentage === 100) {
+
+        description.textContent =
+            "Todas as tarefas foram concluídas!";
+
+    } else {
+
+        description.textContent =
+            `${pending} tarefa(s) ainda precisam de atenção.`;
+    }
 }
 
 
@@ -1895,58 +1522,36 @@ function updateStats() {
 function renderCalendar() {
 
     const grid =
-        document.getElementById(
-            "calendarGrid"
-        );
-
+        $("calendarGrid");
 
     const monthTitle =
-        document.getElementById(
-            "calendarMonth"
-        );
+        $("calendarMonth");
 
 
-    if (
-        !grid ||
-        !monthTitle
-    ) {
-
+    if (!grid || !monthTitle) {
         return;
-
     }
 
 
-    grid.innerHTML =
-        "";
+    grid.innerHTML = "";
 
 
     const year =
-        currentCalendarDate
-            .getFullYear();
-
+        currentCalendarDate.getFullYear();
 
     const month =
-        currentCalendarDate
-            .getMonth();
-
-
-    const monthName =
-        currentCalendarDate
-            .toLocaleDateString(
-                "pt-BR",
-                {
-                    month:
-                        "long",
-
-                    year:
-                        "numeric"
-                }
-            );
+        currentCalendarDate.getMonth();
 
 
     monthTitle.textContent =
         capitalize(
-            monthName
+            currentCalendarDate.toLocaleDateString(
+                "pt-BR",
+                {
+                    month: "long",
+                    year: "numeric"
+                }
+            )
         );
 
 
@@ -1972,16 +1577,9 @@ function renderCalendar() {
         i++
     ) {
 
-        const empty =
-            document.createElement(
-                "div"
-            );
-
-
         grid.appendChild(
-            empty
+            document.createElement("div")
         );
-
     }
 
 
@@ -1992,9 +1590,7 @@ function renderCalendar() {
     ) {
 
         const cell =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
 
         cell.className =
@@ -2009,117 +1605,81 @@ function renderCalendar() {
             );
 
 
-        if (
-            isToday(
-                dateString
-            )
-        ) {
+        if (isToday(dateString)) {
 
             cell.classList.add(
                 "today"
             );
-
         }
 
 
         if (
             isSameDate(
                 dateString,
-                dateToString(
-                    selectedDate
-                )
+                dateToString(selectedDate)
             )
         ) {
 
             cell.classList.add(
                 "selected"
             );
-
         }
 
 
         cell.innerHTML = `
-
             <div class="day-number">
                 ${day}
             </div>
 
             <div class="calendar-items"></div>
-
         `;
 
 
-        const itemsContainer =
+        const items =
             cell.querySelector(
                 ".calendar-items"
             );
 
 
-        /* TAREFAS PENDENTES */
-
         tasks
             .filter(
                 task =>
-                    task.date ===
-                        dateString &&
+                    task.date === dateString &&
                     !task.completed
             )
-            .forEach(
-                task => {
+            .forEach(task => {
 
-                    const item =
-                        document.createElement(
-                            "div"
-                        );
+                const item =
+                    document.createElement("div");
 
+                item.className =
+                    "calendar-item calendar-task";
 
-                    item.className =
-                        "calendar-item calendar-task";
+                item.textContent =
+                    task.title;
 
+                items.appendChild(item);
+            });
 
-                    item.textContent =
-                        task.title;
-
-
-                    itemsContainer.appendChild(
-                        item
-                    );
-
-                }
-            );
-
-
-        /* EVENTOS */
 
         events
             .filter(
                 event =>
-                    event.date ===
-                    dateString
+                    event.date === dateString
             )
-            .forEach(
-                event => {
+            .forEach(event => {
 
-                    const item =
-                        document.createElement(
-                            "div"
-                        );
+                const item =
+                    document.createElement("div");
 
+                item.className =
+                    "calendar-item calendar-event";
 
-                    item.className =
-                        "calendar-item calendar-event";
+                item.textContent =
+                    event.title;
 
-
-                    item.textContent =
-                        event.title;
-
-
-                    itemsContainer.appendChild(
-                        item
-                    );
-
-                }
-            );
+                items.appendChild(item);
+            });
 
 
         cell.addEventListener(
@@ -2133,66 +1693,43 @@ function renderCalendar() {
                         day
                     );
 
-
                 renderCalendar();
-
                 renderSelectedDay();
-
             }
         );
 
 
-        grid.appendChild(
-            cell
-        );
-
+        grid.appendChild(cell);
     }
-
 }
 
 
-/* =====================================================
-   NAVEGAÇÃO DO CALENDÁRIO
-===================================================== */
+safeAddEventListener(
+    $("previousMonth"),
+    "click",
+    () => {
 
-document
-    .getElementById(
-        "previousMonth"
-    )
-    .addEventListener(
-        "click",
-        () => {
+        currentCalendarDate.setMonth(
+            currentCalendarDate.getMonth() - 1
+        );
 
-            currentCalendarDate.setMonth(
-                currentCalendarDate.getMonth() -
-                1
-            );
+        renderCalendar();
+    }
+);
 
 
-            renderCalendar();
+safeAddEventListener(
+    $("nextMonth"),
+    "click",
+    () => {
 
-        }
-    );
+        currentCalendarDate.setMonth(
+            currentCalendarDate.getMonth() + 1
+        );
 
-
-document
-    .getElementById(
-        "nextMonth"
-    )
-    .addEventListener(
-        "click",
-        () => {
-
-            currentCalendarDate.setMonth(
-                currentCalendarDate.getMonth() +
-                1
-            );
-
-
-            renderCalendar();
-
-        }
-    );
+        renderCalendar();
+    }
+);
 
 
 /* =====================================================
@@ -2202,58 +1739,39 @@ document
 function renderSelectedDay() {
 
     const container =
-        document.getElementById(
-            "selectedDayContent"
-        );
-
+        $("selectedDayContent");
 
     const title =
-        document.getElementById(
-            "selectedDateTitle"
-        );
+        $("selectedDateTitle");
 
 
-    if (
-        !container ||
-        !title
-    ) {
-
+    if (!container || !title) {
         return;
-
     }
 
 
     const dateString =
-        dateToString(
-            selectedDate
-        );
+        dateToString(selectedDate);
 
 
     title.textContent =
         selectedDate.toLocaleDateString(
             "pt-BR",
             {
-                day:
-                    "numeric",
-
-                month:
-                    "long",
-
-                year:
-                    "numeric"
+                day: "numeric",
+                month: "long",
+                year: "numeric"
             }
         );
 
 
-    container.innerHTML =
-        "";
+    container.innerHTML = "";
 
 
     const dayTasks =
         tasks.filter(
             task =>
-                task.date ===
-                    dateString &&
+                task.date === dateString &&
                 !task.completed
         );
 
@@ -2261,8 +1779,7 @@ function renderSelectedDay() {
     const dayEvents =
         events.filter(
             event =>
-                event.date ===
-                dateString
+                event.date === dateString
         );
 
 
@@ -2272,7 +1789,6 @@ function renderSelectedDay() {
     ) {
 
         container.innerHTML = `
-
             <div class="empty-state">
 
                 <div class="empty-icon">
@@ -2288,214 +1804,145 @@ function renderSelectedDay() {
                 </p>
 
             </div>
-
         `;
 
         return;
-
     }
 
 
-    /* EVENTOS */
+    dayEvents.forEach(event => {
 
-    dayEvents.forEach(
-        event => {
-
-            const element =
-                document.createElement(
-                    "div"
-                );
+        const element =
+            document.createElement("div");
 
 
-            element.className =
-                "day-event";
+        element.className =
+            "day-event";
 
 
-            element.innerHTML = `
+        element.innerHTML = `
+            <div class="day-event-content">
 
-                <div class="day-event-content">
+                <strong>
+                    📌 ${escapeHTML(event.title)}
+                </strong>
 
-                    <strong>
-                        📌 ${escapeHTML(
-                            event.title
-                        )}
-                    </strong>
+                <p>
+                    ${escapeHTML(
+                        event.description ||
+                        "Sem descrição."
+                    )}
+                </p>
 
-                    <p>
-                        ${escapeHTML(
-                            event.description ||
-                            "Sem descrição."
-                        )}
-                    </p>
+            </div>
 
-                </div>
+            <div class="day-event-actions">
 
-                <div class="day-event-actions">
+                <button
+                    class="edit-event"
+                    type="button"
+                >
+                    ✎
+                </button>
 
-                    <button
-                        class="edit-event"
-                        type="button"
-                        data-id="${event.id}"
-                        title="Editar evento"
-                    >
-                        ✎
-                    </button>
+                <button
+                    class="delete-event"
+                    type="button"
+                >
+                    ×
+                </button>
 
-                    <button
-                        class="delete-event"
-                        type="button"
-                        data-id="${event.id}"
-                        title="Excluir evento"
-                    >
-                        ×
-                    </button>
-
-                </div>
-
-            `;
+            </div>
+        `;
 
 
-            element
-                .querySelector(
-                    ".edit-event"
-                )
-                .addEventListener(
-                    "click",
-                    () => {
-
-                        editEvent(
-                            event.id
-                        );
-
-                    }
-                );
+        safeAddEventListener(
+            element.querySelector(
+                ".edit-event"
+            ),
+            "click",
+            () => editEvent(event.id)
+        );
 
 
-            element
-                .querySelector(
-                    ".delete-event"
-                )
-                .addEventListener(
-                    "click",
-                    () => {
-
-                        deleteEvent(
-                            event.id
-                        );
-
-                    }
-                );
+        safeAddEventListener(
+            element.querySelector(
+                ".delete-event"
+            ),
+            "click",
+            () => deleteEvent(event.id)
+        );
 
 
-            container.appendChild(
-                element
-            );
-
-        }
-    );
+        container.appendChild(element);
+    });
 
 
-    /* TAREFAS */
+    dayTasks.forEach(task => {
 
-    dayTasks.forEach(
-        task => {
-
-            const element =
-                document.createElement(
-                    "div"
-                );
+        const element =
+            document.createElement("div");
 
 
-            element.className =
-                "day-event";
+        element.className =
+            "day-event";
 
 
-            element.innerHTML = `
+        element.innerHTML = `
+            <div class="day-event-content">
 
-                <div class="day-event-content">
+                <strong>
+                    ✓ ${escapeHTML(task.title)}
+                </strong>
 
-                    <strong>
-                        ✓ ${escapeHTML(
-                            task.title
-                        )}
-                    </strong>
+                <p>
+                    ${escapeHTML(task.subject)}
+                    • Prioridade:
+                    ${getPriorityLabel(task.priority)}
+                </p>
 
-                    <p>
-                        ${escapeHTML(
-                            task.subject
-                        )}
-                        • Prioridade:
-                        ${getPriorityLabel(
-                            task.priority
-                        )}
-                    </p>
+            </div>
 
-                </div>
+            <div class="day-event-actions">
 
-                <div class="day-event-actions">
+                <button
+                    class="edit-task-day"
+                    type="button"
+                >
+                    ✎
+                </button>
 
-                    <button
-                        class="edit-task-day"
-                        type="button"
-                        data-id="${task.id}"
-                        title="Editar tarefa"
-                    >
-                        ✎
-                    </button>
+                <button
+                    class="complete-task-day"
+                    type="button"
+                >
+                    ✓
+                </button>
 
-                    <button
-                        class="complete-task-day"
-                        type="button"
-                        data-id="${task.id}"
-                        title="Concluir tarefa"
-                    >
-                        ✓
-                    </button>
-
-                </div>
-
-            `;
+            </div>
+        `;
 
 
-            element
-                .querySelector(
-                    ".edit-task-day"
-                )
-                .addEventListener(
-                    "click",
-                    () => {
-
-                        editTask(
-                            task.id
-                        );
-
-                    }
-                );
+        safeAddEventListener(
+            element.querySelector(
+                ".edit-task-day"
+            ),
+            "click",
+            () => editTask(task.id)
+        );
 
 
-            element
-                .querySelector(
-                    ".complete-task-day"
-                )
-                .addEventListener(
-                    "click",
-                    () => {
-
-                        toggleTask(
-                            task.id
-                        );
-
-                    }
-                );
+        safeAddEventListener(
+            element.querySelector(
+                ".complete-task-day"
+            ),
+            "click",
+            () => toggleTask(task.id)
+        );
 
 
-            container.appendChild(
-                element
-            );
-
-        }
-    );
-
+        container.appendChild(element);
+    });
 }
 
 
@@ -2503,89 +1950,55 @@ function renderSelectedDay() {
    EVENTOS
 ===================================================== */
 
-document
-    .getElementById(
-        "openEventModal"
-    )
-    .addEventListener(
-        "click",
-        () => {
+safeAddEventListener(
+    $("openEventModal"),
+    "click",
+    () => {
 
-            editingEventId =
-                null;
+        editingEventId = null;
 
+        $("eventForm")?.reset();
 
-            eventForm.reset();
+        $("eventModalTitle").textContent =
+            "Novo evento";
 
+        $("eventSubmitButton").textContent =
+            "Criar evento";
 
-            document.getElementById(
-                "eventModalTitle"
-            ).textContent =
-                "Novo evento";
-
-
-            document.getElementById(
-                "eventSubmitButton"
-            ).textContent =
-                "Criar evento";
+        $("eventModal")?.classList.add(
+            "active"
+        );
+    }
+);
 
 
-            eventModal.classList.add(
-                "active"
-            );
+safeAddEventListener(
+    $("closeEventModal"),
+    "click",
+    () => {
 
-        }
-    );
+        $("eventModal")?.classList.remove(
+            "active"
+        );
 
+        editingEventId = null;
 
-document
-    .getElementById(
-        "closeEventModal"
-    )
-    .addEventListener(
-        "click",
-        () => {
+        $("eventForm")?.reset();
 
-            eventModal.classList.remove(
-                "active"
-            );
+        $("eventModalTitle").textContent =
+            "Novo evento";
 
-
-            editingEventId =
-                null;
+        $("eventSubmitButton").textContent =
+            "Criar evento";
+    }
+);
 
 
-            eventForm.reset();
-
-
-            document.getElementById(
-                "eventModalTitle"
-            ).textContent =
-                "Novo evento";
-
-
-            document.getElementById(
-                "eventSubmitButton"
-            ).textContent =
-                "Criar evento";
-
-        }
-    );
-
-
-/* =====================================================
-   EDITAR EVENTO
-===================================================== */
-
-function editEvent(
-    id
-) {
+function editEvent(id) {
 
     const event =
         events.find(
-            event =>
-                event.id ===
-                id
+            item => item.id === id
         );
 
 
@@ -2594,91 +2007,59 @@ function editEvent(
     }
 
 
-    editingEventId =
-        id;
+    editingEventId = id;
 
 
-    document.getElementById(
-        "eventTitle"
-    ).value =
+    $("eventTitle").value =
         event.title;
 
+    $("eventDescription").value =
+        event.description || "";
 
-    document.getElementById(
-        "eventDescription"
-    ).value =
-        event.description ||
-        "";
-
-
-    document.getElementById(
-        "eventDate"
-    ).value =
+    $("eventDate").value =
         event.date;
 
 
-    document.getElementById(
-        "eventModalTitle"
-    ).textContent =
+    $("eventModalTitle").textContent =
         "Editar evento";
 
-
-    document.getElementById(
-        "eventSubmitButton"
-    ).textContent =
+    $("eventSubmitButton").textContent =
         "Salvar alterações";
 
 
-    eventModal.classList.add(
+    $("eventModal")?.classList.add(
         "active"
     );
-
 }
 
 
-/* =====================================================
-   EXCLUIR EVENTO
-===================================================== */
+function deleteEvent(id) {
 
-function deleteEvent(
-    id
-) {
-
-    const confirmed =
-        confirm(
+    if (
+        !confirm(
             "Deseja realmente excluir este evento?"
-        );
-
-
-    if (!confirmed) {
+        )
+    ) {
         return;
     }
 
 
     events =
         events.filter(
-            event =>
-                event.id !==
-                id
+            event => event.id !== id
         );
 
 
     saveEvents();
 
     renderCalendar();
-
     renderSelectedDay();
-
     updateNextEvent();
-
 }
 
 
-/* =====================================================
-   CRIAR / EDITAR EVENTO
-===================================================== */
-
-eventForm.addEventListener(
+safeAddEventListener(
+    $("eventForm"),
     "submit",
     event => {
 
@@ -2686,120 +2067,75 @@ eventForm.addEventListener(
 
 
         const title =
-            document
-                .getElementById(
-                    "eventTitle"
-                )
-                .value
-                .trim();
-
+            $("eventTitle")?.value.trim();
 
         const description =
-            document
-                .getElementById(
-                    "eventDescription"
-                )
-                .value
-                .trim();
-
+            $("eventDescription")?.value.trim();
 
         const date =
-            document
-                .getElementById(
-                    "eventDate"
-                )
-                .value;
+            $("eventDate")?.value;
 
 
-        if (
-            editingEventId !== null
-        ) {
-
-            events =
-                events.map(
-                    event => {
-
-                        if (
-                            event.id ===
-                            editingEventId
-                        ) {
-
-                            return {
-                                ...event,
-
-                                title,
-
-                                description,
-
-                                date
-                            };
-
-                        }
-
-
-                        return event;
-
-                    }
-                );
-
+        if (!title || !date) {
+            return;
         }
 
-        else {
 
-            const newEvent = {
+        if (editingEventId !== null) {
 
-                id:
-                    Date.now(),
+            events =
+                events.map(event => {
 
+                    if (
+                        event.id ===
+                        editingEventId
+                    ) {
+
+                        return {
+                            ...event,
+                            title,
+                            description,
+                            date
+                        };
+                    }
+
+                    return event;
+                });
+
+        } else {
+
+            events.push({
+                id: Date.now(),
                 title,
-
                 description,
-
                 date
-
-            };
-
-
-            events.push(
-                newEvent
-            );
-
+            });
         }
 
 
         saveEvents();
 
 
-        eventForm.reset();
+        $("eventForm")?.reset();
 
-
-        eventModal.classList.remove(
+        $("eventModal")?.classList.remove(
             "active"
         );
 
 
-        editingEventId =
-            null;
+        editingEventId = null;
 
 
-        document.getElementById(
-            "eventModalTitle"
-        ).textContent =
+        $("eventModalTitle").textContent =
             "Novo evento";
 
-
-        document.getElementById(
-            "eventSubmitButton"
-        ).textContent =
+        $("eventSubmitButton").textContent =
             "Criar evento";
 
 
         renderCalendar();
-
         renderSelectedDay();
-
         updateNextEvent();
-
     }
 );
 
@@ -2811,9 +2147,7 @@ eventForm.addEventListener(
 function updateNextEvent() {
 
     const container =
-        document.getElementById(
-            "nextEvent"
-        );
+        $("nextEvent");
 
 
     if (!container) {
@@ -2822,17 +2156,14 @@ function updateNextEvent() {
 
 
     const today =
-        dateToString(
-            new Date()
-        );
+        dateToString(new Date());
 
 
     const upcomingEvents =
         events
             .filter(
                 event =>
-                    event.date >=
-                    today
+                    event.date >= today
             )
             .sort(
                 (a, b) =>
@@ -2848,8 +2179,7 @@ function updateNextEvent() {
                 task =>
                     !task.completed &&
                     task.date &&
-                    task.date >=
-                    today
+                    task.date >= today
             )
             .sort(
                 (a, b) =>
@@ -2860,12 +2190,11 @@ function updateNextEvent() {
 
 
     if (
-        upcomingEvents.length === 0 &&
-        upcomingTasks.length === 0
+        !upcomingEvents.length &&
+        !upcomingTasks.length
     ) {
 
         container.innerHTML = `
-
             <div class="empty-icon">
                 ○
             </div>
@@ -2877,19 +2206,16 @@ function updateNextEvent() {
             <p>
                 Sua agenda está tranquila.
             </p>
-
         `;
 
         return;
-
     }
 
 
-    const nextEvent =
+    const event =
         upcomingEvents[0];
 
-
-    const nextTask =
+    const task =
         upcomingTasks[0];
 
 
@@ -2897,73 +2223,738 @@ function updateNextEvent() {
 
 
     if (
-        !nextTask ||
+        !task ||
         (
-            nextEvent &&
-            nextEvent.date <
-            nextTask.date
+            event &&
+            event.date < task.date
         )
     ) {
 
         item = {
-
-            title:
-                nextEvent.title,
-
-            date:
-                nextEvent.date,
-
-            type:
-                "Evento"
-
+            title: event.title,
+            date: event.date,
+            type: "Evento"
         };
 
-    }
-
-    else {
+    } else {
 
         item = {
-
-            title:
-                nextTask.title,
-
-            date:
-                nextTask.date,
-
-            type:
-                "Tarefa"
-
+            title: task.title,
+            date: task.date,
+            type: "Tarefa"
         };
-
     }
 
 
     container.innerHTML = `
-
         <div class="empty-icon">
-            ${
-                item.type === "Evento"
-                    ? "📌"
-                    : "✓"
-            }
+            ${item.type === "Evento" ? "📌" : "✓"}
         </div>
 
         <h3>
-            ${escapeHTML(
-                item.title
-            )}
+            ${escapeHTML(item.title)}
         </h3>
 
         <p>
             ${item.type}
-            • ${formatDate(
-                item.date
-            )}
+            • ${formatDate(item.date)}
         </p>
-
     `;
-
 }
+
+
+/* =====================================================
+   CRONÔMETRO DE FOCO
+===================================================== */
+
+const focusSetup =
+    $("focusSetup");
+
+const focusTimer =
+    $("focusTimer");
+
+const focusComplete =
+    $("focusComplete");
+
+const focusTime =
+    $("focusTime");
+
+const focusStatus =
+    $("focusStatus");
+
+const startFocus =
+    $("startFocus");
+
+const pauseFocus =
+    $("pauseFocus");
+
+const stopFocus =
+    $("stopFocus");
+
+const newFocus =
+    $("newFocus");
+
+const focusCustomMinutes =
+    $("focusCustomMinutes");
+
+const todayStudyTime =
+    $("todayStudyTime");
+
+const todayStudySessions =
+    $("todayStudySessions");
+
+const focusCompleteMessage =
+    $("focusCompleteMessage");
+
+const focusPresets =
+    document.querySelectorAll(
+        ".focus-preset"
+    );
+
+
+let focusSelectedMinutes = 25;
+
+let focusTotalSeconds =
+    25 * 60;
+
+let focusRemainingSeconds =
+    25 * 60;
+
+let focusInterval = null;
+
+let focusRunning = false;
+
+let focusPaused = false;
+
+
+/* =====================================================
+   ARMAZENAMENTO DO FOCO
+===================================================== */
+
+function getStudyStorageKey() {
+
+    return currentUser
+        ? `studyflow_focus_${currentUser.uid}`
+        : "studyflow_focus_guest";
+}
+
+
+function getTodayKey() {
+
+    return dateToString(
+        new Date()
+    );
+}
+
+
+function getTodayStudyData() {
+
+    const key =
+        getStudyStorageKey();
+
+
+    let data = {};
+
+
+    try {
+
+        data =
+            JSON.parse(
+                localStorage.getItem(key)
+            ) || {};
+
+    } catch {
+
+        data = {};
+    }
+
+
+    const today =
+        getTodayKey();
+
+
+    if (!data[today]) {
+
+        data[today] = {
+            seconds: 0,
+            sessions: 0
+        };
+    }
+
+
+    return {
+        all: data,
+        today: data[today]
+    };
+}
+
+
+function saveStudyData(data) {
+
+    localStorage.setItem(
+        getStudyStorageKey(),
+        JSON.stringify(data)
+    );
+}
+
+
+/* =====================================================
+   TOTAL ESTUDADO
+===================================================== */
+
+function updateStudyTotals() {
+
+    const data =
+        getTodayStudyData();
+
+
+    const totalSeconds =
+        data.today.seconds;
+
+
+    const hours =
+        Math.floor(
+            totalSeconds / 3600
+        );
+
+
+    const minutes =
+        Math.floor(
+            (totalSeconds % 3600) / 60
+        );
+
+
+    const formatted =
+        `${hours}h ${String(minutes).padStart(2, "0")}min`;
+
+
+    if (todayStudyTime) {
+
+        todayStudyTime.textContent =
+            formatted;
+    }
+
+
+    if (todayStudySessions) {
+
+        todayStudySessions.textContent =
+            data.today.sessions;
+    }
+
+
+    const homeStudyTime =
+        $("homeStudyTime");
+
+
+    if (homeStudyTime) {
+
+        homeStudyTime.textContent =
+            formatted;
+    }
+}
+
+
+/* =====================================================
+   DISPLAY DO CRONÔMETRO
+===================================================== */
+
+function formatFocusTime(seconds) {
+
+    seconds =
+        Math.max(
+            0,
+            Math.floor(seconds)
+        );
+
+
+    const minutes =
+        Math.floor(
+            seconds / 60
+        );
+
+
+    const remaining =
+        seconds % 60;
+
+
+    return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(remaining).padStart(2, "0")
+    );
+}
+
+
+function updateFocusDisplay() {
+
+    if (focusTime) {
+
+        focusTime.textContent =
+            formatFocusTime(
+                focusRemainingSeconds
+            );
+    }
+
+
+    const progress =
+        focusTotalSeconds > 0
+            ? 1 -
+              (
+                  focusRemainingSeconds /
+                  focusTotalSeconds
+              )
+            : 0;
+
+
+    const degrees =
+        progress * 360;
+
+
+    const circle =
+        document.querySelector(
+            ".focus-timer-circle"
+        );
+
+
+    if (circle) {
+
+        circle.style.background =
+            `conic-gradient(
+                var(--primary) ${degrees}deg,
+                var(--primary-light) ${degrees}deg
+            )`;
+    }
+}
+
+
+/* =====================================================
+   PRESETS
+===================================================== */
+
+focusPresets.forEach(
+    button => {
+
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
+
+                focusPresets.forEach(
+                    item =>
+                        item.classList.remove(
+                            "active"
+                        )
+                );
+
+
+                button.classList.add(
+                    "active"
+                );
+
+
+                focusSelectedMinutes =
+                    Number(
+                        button.dataset.minutes
+                    );
+
+
+                if (focusCustomMinutes) {
+
+                    focusCustomMinutes.value =
+                        "";
+                }
+
+
+                focusTotalSeconds =
+                    focusSelectedMinutes *
+                    60;
+
+
+                focusRemainingSeconds =
+                    focusTotalSeconds;
+
+
+                updateFocusDisplay();
+            }
+        );
+    }
+);
+
+
+/* =====================================================
+   TEMPO PERSONALIZADO
+===================================================== */
+
+safeAddEventListener(
+    focusCustomMinutes,
+    "input",
+    () => {
+
+        const custom =
+            Number(
+                focusCustomMinutes.value
+            );
+
+
+        if (
+            custom > 0 &&
+            custom <= 600
+        ) {
+
+            focusPresets.forEach(
+                item =>
+                    item.classList.remove(
+                        "active"
+                    )
+            );
+
+
+            focusSelectedMinutes =
+                custom;
+
+            focusTotalSeconds =
+                custom * 60;
+
+            focusRemainingSeconds =
+                focusTotalSeconds;
+
+
+            updateFocusDisplay();
+        }
+    }
+);
+
+
+/* =====================================================
+   INICIAR SESSÃO
+===================================================== */
+
+function startFocusSession() {
+
+    if (
+        focusSelectedMinutes <= 0 ||
+        focusRunning
+    ) {
+        return;
+    }
+
+
+    clearInterval(
+        focusInterval
+    );
+
+
+    focusTotalSeconds =
+        focusSelectedMinutes * 60;
+
+
+    focusRemainingSeconds =
+        focusTotalSeconds;
+
+
+    focusRunning = true;
+
+    focusPaused = false;
+
+
+    if (focusSetup) {
+        focusSetup.style.display =
+            "none";
+    }
+
+
+    if (focusComplete) {
+        focusComplete.style.display =
+            "none";
+    }
+
+
+    if (focusTimer) {
+        focusTimer.style.display =
+            "block";
+    }
+
+
+    if (pauseFocus) {
+        pauseFocus.textContent =
+            "Pausar";
+    }
+
+
+    if (focusStatus) {
+        focusStatus.textContent =
+            "Em foco";
+    }
+
+
+    updateFocusDisplay();
+
+
+    focusInterval =
+        setInterval(
+            updateFocusSession,
+            250
+        );
+}
+
+
+/* =====================================================
+   ATUALIZAR SESSÃO
+===================================================== */
+
+function updateFocusSession() {
+
+    if (
+        !focusRunning ||
+        focusPaused
+    ) {
+        return;
+    }
+
+
+    focusRemainingSeconds -=
+        0.25;
+
+
+    if (
+        focusRemainingSeconds <= 0
+    ) {
+
+        focusRemainingSeconds =
+            0;
+
+
+        updateFocusDisplay();
+
+        finishFocusSession();
+
+        return;
+    }
+
+
+    updateFocusDisplay();
+}
+
+
+/* =====================================================
+   PAUSAR / CONTINUAR
+===================================================== */
+
+safeAddEventListener(
+    pauseFocus,
+    "click",
+    () => {
+
+        if (!focusRunning) {
+            return;
+        }
+
+
+        focusPaused =
+            !focusPaused;
+
+
+        if (focusPaused) {
+
+            if (focusStatus) {
+                focusStatus.textContent =
+                    "Pausado";
+            }
+
+            pauseFocus.textContent =
+                "Continuar";
+
+        } else {
+
+            if (focusStatus) {
+                focusStatus.textContent =
+                    "Em foco";
+            }
+
+            pauseFocus.textContent =
+                "Pausar";
+        }
+    }
+);
+
+
+/* =====================================================
+   REGISTRAR TEMPO
+===================================================== */
+
+function registerStudyTime(
+    seconds,
+    completed
+) {
+
+    const {
+        all,
+        today
+    } =
+        getTodayStudyData();
+
+
+    today.seconds +=
+        Math.max(
+            0,
+            Math.floor(seconds)
+        );
+
+
+    if (completed) {
+
+        today.sessions += 1;
+    }
+
+
+    all[getTodayKey()] =
+        today;
+
+
+    saveStudyData(all);
+
+    updateStudyTotals();
+}
+
+
+/* =====================================================
+   ENCERRAR SESSÃO
+===================================================== */
+
+safeAddEventListener(
+    stopFocus,
+    "click",
+    () => {
+
+        if (!focusRunning) {
+            return;
+        }
+
+
+        const elapsed =
+            focusTotalSeconds -
+            focusRemainingSeconds;
+
+
+        if (elapsed > 0) {
+
+            registerStudyTime(
+                elapsed,
+                false
+            );
+        }
+
+
+        clearInterval(
+            focusInterval
+        );
+
+
+        focusRunning = false;
+
+        focusPaused = false;
+
+
+        if (focusSetup) {
+            focusSetup.style.display =
+                "block";
+        }
+
+
+        if (focusTimer) {
+            focusTimer.style.display =
+                "none";
+        }
+
+
+        updateStudyTotals();
+    }
+);
+
+
+/* =====================================================
+   CONCLUIR SESSÃO
+===================================================== */
+
+function finishFocusSession() {
+
+    clearInterval(
+        focusInterval
+    );
+
+
+    focusRunning = false;
+
+    focusPaused = false;
+
+
+    registerStudyTime(
+        focusTotalSeconds,
+        true
+    );
+
+
+    if (focusTimer) {
+        focusTimer.style.display =
+            "none";
+    }
+
+
+    if (focusSetup) {
+        focusSetup.style.display =
+            "none";
+    }
+
+
+    if (focusComplete) {
+        focusComplete.style.display =
+            "block";
+    }
+
+
+    if (focusCompleteMessage) {
+
+        focusCompleteMessage.textContent =
+            `Você terminou ${focusSelectedMinutes} minutos de foco. Seu esforço de hoje já conta para o seu progresso. Parabéns pela dedicação!`;
+    }
+}
+
+
+/* =====================================================
+   NOVA SESSÃO
+===================================================== */
+
+safeAddEventListener(
+    newFocus,
+    "click",
+    () => {
+
+        if (focusComplete) {
+            focusComplete.style.display =
+                "none";
+        }
+
+
+        if (focusSetup) {
+            focusSetup.style.display =
+                "block";
+        }
+
+
+        focusRemainingSeconds =
+            focusTotalSeconds;
+
+
+        updateFocusDisplay();
+    }
+);
+
+
+safeAddEventListener(
+    startFocus,
+    "click",
+    startFocusSession
+);
 
 
 /* =====================================================
@@ -2974,60 +2965,55 @@ document
     .querySelectorAll(
         ".theme-option"
     )
-    .forEach(
-        button => {
+    .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                () => {
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
 
-                    const theme =
-                        button.dataset.theme;
-
-
-                    document.body.dataset.theme =
-                        theme;
+                const theme =
+                    button.dataset.theme;
 
 
-                    localStorage.setItem(
-                        "studyflow_theme",
-                        theme
-                    );
+                document.body.dataset.theme =
+                    theme;
 
 
-                    updateActiveTheme();
+                localStorage.setItem(
+                    "studyflow_theme",
+                    theme
+                );
 
-                }
-            );
 
-        }
-    );
+                updateActiveTheme();
+            }
+        );
+    });
 
 
 function loadTheme() {
 
-    const savedTheme =
+    const saved =
         localStorage.getItem(
             "studyflow_theme"
         );
 
 
-    if (savedTheme) {
+    if (saved) {
 
         document.body.dataset.theme =
-            savedTheme;
-
+            saved;
     }
 
 
     updateActiveTheme();
-
 }
 
 
 function updateActiveTheme() {
 
-    const currentTheme =
+    const current =
         document.body.dataset.theme ||
         "light";
 
@@ -3036,18 +3022,14 @@ function updateActiveTheme() {
         .querySelectorAll(
             ".theme-option"
         )
-        .forEach(
-            button => {
+        .forEach(button => {
 
-                button.classList.toggle(
-                    "active",
-                    button.dataset.theme ===
-                    currentTheme
-                );
-
-            }
-        );
-
+            button.classList.toggle(
+                "active",
+                button.dataset.theme ===
+                current
+            );
+        });
 }
 
 
@@ -3057,91 +3039,9 @@ function updateActiveTheme() {
 
 function getUserPhotoKey() {
 
-    if (!currentUser) {
-        return null;
-    }
-
-
-    return `studyflow_profile_photo_${currentUser.uid}`;
-
-}
-
-
-const profilePhotoInput =
-    document.getElementById(
-        "profilePhotoInput"
-    );
-
-
-if (profilePhotoInput) {
-
-    profilePhotoInput.addEventListener(
-        "change",
-        event => {
-
-            if (!currentUser) {
-                return;
-            }
-
-
-            const file =
-                event.target.files[0];
-
-
-            if (!file) {
-                return;
-            }
-
-
-            if (
-                !file.type.startsWith(
-                    "image/"
-                )
-            ) {
-
-                alert(
-                    "Escolha uma imagem válida."
-                );
-
-                return;
-
-            }
-
-
-            const reader =
-                new FileReader();
-
-
-            reader.onload =
-                () => {
-
-                    const key =
-                        getUserPhotoKey();
-
-
-                    if (!key) {
-                        return;
-                    }
-
-
-                    localStorage.setItem(
-                        key,
-                        reader.result
-                    );
-
-
-                    loadProfilePhoto();
-
-                };
-
-
-            reader.readAsDataURL(
-                file
-            );
-
-        }
-    );
-
+    return currentUser
+        ? `studyflow_profile_photo_${currentUser.uid}`
+        : null;
 }
 
 
@@ -3153,34 +3053,21 @@ function loadProfilePhoto() {
 
     const photo =
         key
-            ? localStorage.getItem(
-                key
-            )
+            ? localStorage.getItem(key)
             : null;
 
 
     const profileImage =
-        document.getElementById(
-            "profileImage"
-        );
-
+        $("profileImage");
 
     const profileInitial =
-        document.getElementById(
-            "profileInitial"
-        );
-
+        $("profileInitial");
 
     const headerImage =
-        document.getElementById(
-            "headerProfileImage"
-        );
-
+        $("headerProfileImage");
 
     const headerInitial =
-        document.getElementById(
-            "headerProfileInitial"
-        );
+        $("headerProfileInitial");
 
 
     if (
@@ -3189,9 +3076,7 @@ function loadProfilePhoto() {
         !headerImage ||
         !headerInitial
     ) {
-
         return;
-
     }
 
 
@@ -3200,10 +3085,8 @@ function loadProfilePhoto() {
         profileImage.src =
             photo;
 
-
         profileImage.style.display =
             "block";
-
 
         profileInitial.style.display =
             "none";
@@ -3212,26 +3095,20 @@ function loadProfilePhoto() {
         headerImage.src =
             photo;
 
-
         headerImage.style.display =
             "block";
-
 
         headerInitial.style.display =
             "none";
 
-    }
-
-    else {
+    } else {
 
         profileImage.removeAttribute(
             "src"
         );
 
-
         profileImage.style.display =
             "none";
-
 
         profileInitial.style.display =
             "flex";
@@ -3241,172 +3118,232 @@ function loadProfilePhoto() {
             "src"
         );
 
-
         headerImage.style.display =
             "none";
 
-
         headerInitial.style.display =
             "flex";
-
     }
-
 }
 
 
-document
-    .getElementById(
-        "removeProfilePhoto"
-    )
-    .addEventListener(
-        "click",
-        () => {
+safeAddEventListener(
+    $("profilePhotoInput"),
+    "change",
+    event => {
 
-            const key =
-                getUserPhotoKey();
+        if (!currentUser) {
+            return;
+        }
 
 
-            if (key) {
+        const file =
+            event.target.files?.[0];
 
-                localStorage.removeItem(
-                    key
+
+        if (!file) {
+            return;
+        }
+
+
+        if (
+            !file.type.startsWith(
+                "image/"
+            )
+        ) {
+
+            alert(
+                "Escolha uma imagem válida."
+            );
+
+            return;
+        }
+
+
+        const reader =
+            new FileReader();
+
+
+        reader.onload =
+            () => {
+
+                const key =
+                    getUserPhotoKey();
+
+
+                if (!key) {
+                    return;
+                }
+
+
+                localStorage.setItem(
+                    key,
+                    reader.result
                 );
 
-            }
+
+                loadProfilePhoto();
+            };
 
 
-            if (profilePhotoInput) {
-
-                profilePhotoInput.value =
-                    "";
-
-            }
+        reader.readAsDataURL(file);
+    }
+);
 
 
-            loadProfilePhoto();
+safeAddEventListener(
+    $("removeProfilePhoto"),
+    "click",
+    () => {
 
+        const key =
+            getUserPhotoKey();
+
+
+        if (key) {
+
+            localStorage.removeItem(
+                key
+            );
         }
-    );
+
+
+        const input =
+            $("profilePhotoInput");
+
+
+        if (input) {
+            input.value = "";
+        }
+
+
+        loadProfilePhoto();
+    }
+);
 
 
 /* =====================================================
-   MÚSICA / SPOTIFY
+   ALTERAR NOME
+===================================================== */
+
+safeAddEventListener(
+    $("editProfileName"),
+    "click",
+    async () => {
+
+        if (!currentUser) {
+            return;
+        }
+
+
+        const newName =
+            prompt(
+                "Digite seu novo nome:",
+                currentUser.displayName || ""
+            );
+
+
+        if (
+            !newName ||
+            !newName.trim()
+        ) {
+            return;
+        }
+
+
+        try {
+
+            await updateProfile(
+                currentUser,
+                {
+                    displayName:
+                        newName.trim()
+                }
+            );
+
+
+            await currentUser.reload();
+
+
+            loadUserProfile(
+                currentUser
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Erro ao alterar nome:",
+                error
+            );
+
+
+            alert(
+                "Não foi possível alterar o nome."
+            );
+        }
+    }
+);
+
+
+/* =====================================================
+   LOGOUT
+===================================================== */
+
+safeAddEventListener(
+    $("logoutButton"),
+    "click",
+    async () => {
+
+        try {
+
+            await signOut(auth);
+
+        } catch (error) {
+
+            console.error(
+                "Erro ao sair:",
+                error
+            );
+
+
+            alert(
+                "Não foi possível sair da conta."
+            );
+        }
+    }
+);
+
+
+/* =====================================================
+   SPOTIFY
 ===================================================== */
 
 function getPlaylistKey() {
 
-    if (!currentUser) {
-        return null;
-    }
-
-
-    return `studyflow_playlist_${currentUser.uid}`;
-
+    return currentUser
+        ? `studyflow_playlist_${currentUser.uid}`
+        : null;
 }
 
 
-document
-    .getElementById(
-        "addPlaylist"
-    )
-    .addEventListener(
-        "click",
-        () => {
-
-            if (!currentUser) {
-                return;
-            }
-
-
-            const input =
-                document.getElementById(
-                    "playlistUrl"
-                );
-
-
-            const url =
-                input.value.trim();
-
-
-            if (!url) {
-
-                alert(
-                    "Cole o link de uma playlist."
-                );
-
-                return;
-
-            }
-
-
-            const playlistId =
-                extractSpotifyPlaylistId(
-                    url
-                );
-
-
-            if (!playlistId) {
-
-                alert(
-                    "Esse link não parece ser uma playlist válida do Spotify."
-                );
-
-                return;
-
-            }
-
-
-            const key =
-                getPlaylistKey();
-
-
-            if (!key) {
-                return;
-            }
-
-
-            localStorage.setItem(
-                key,
-                playlistId
-            );
-
-
-            input.value =
-                "";
-
-
-            loadPlaylist();
-
-        }
-    );
-
-
-function extractSpotifyPlaylistId(
-    url
-) {
+function extractSpotifyPlaylistId(url) {
 
     try {
 
         const parsed =
-            new URL(
-                url
-            );
+            new URL(url);
 
 
         if (
             parsed.hostname !==
             "open.spotify.com"
         ) {
-
             return null;
-
         }
 
 
         const parts =
-            parsed.pathname.split(
-                "/"
-            );
+            parsed.pathname.split("/");
 
 
         const index =
@@ -3419,46 +3356,29 @@ function extractSpotifyPlaylistId(
             index === -1 ||
             !parts[index + 1]
         ) {
-
             return null;
-
         }
 
 
-        const playlistId =
+        const id =
             parts[index + 1];
 
 
-        if (
-            !/^[A-Za-z0-9]{22}$/.test(
-                playlistId
-            )
-        ) {
+        return /^[A-Za-z0-9]{22}$/.test(id)
+            ? id
+            : null;
 
-            return null;
-
-        }
-
-
-        return playlistId;
-
-    }
-
-    catch {
+    } catch {
 
         return null;
-
     }
-
 }
 
 
 function loadPlaylist() {
 
     const container =
-        document.getElementById(
-            "playlistContainer"
-        );
+        $("playlistContainer");
 
 
     if (!container) {
@@ -3472,9 +3392,7 @@ function loadPlaylist() {
 
     const playlistId =
         key
-            ? localStorage.getItem(
-                key
-            )
+            ? localStorage.getItem(key)
             : null;
 
 
@@ -3484,7 +3402,6 @@ function loadPlaylist() {
             "";
 
         return;
-
     }
 
 
@@ -3509,181 +3426,159 @@ function loadPlaylist() {
     container.replaceChildren(
         iframe
     );
-
 }
 
 
-/* =====================================================
-   UTILIDADES
-===================================================== */
+safeAddEventListener(
+    $("addPlaylist"),
+    "click",
+    () => {
 
-function formatDate(
-    dateString
-) {
+        if (!currentUser) {
+            return;
+        }
 
-    if (!dateString) {
 
-        return "Sem prazo";
+        const input =
+            $("playlistUrl");
 
+
+        const url =
+            input?.value.trim();
+
+
+        if (!url) {
+
+            alert(
+                "Cole o link de uma playlist."
+            );
+
+            return;
+        }
+
+
+        const playlistId =
+            extractSpotifyPlaylistId(
+                url
+            );
+
+
+        if (!playlistId) {
+
+            alert(
+                "Esse link não parece ser uma playlist válida do Spotify."
+            );
+
+            return;
+        }
+
+
+        const key =
+            getPlaylistKey();
+
+
+        if (!key) {
+            return;
+        }
+
+
+        localStorage.setItem(
+            key,
+            playlistId
+        );
+
+
+        input.value =
+            "";
+
+
+        loadPlaylist();
     }
-
-
-    const date =
-        new Date(
-            dateString +
-            "T00:00:00"
-        );
-
-
-    return date.toLocaleDateString(
-        "pt-BR"
-    );
-
-}
-
-
-function dateToString(
-    date
-) {
-
-    const year =
-        date.getFullYear();
-
-
-    const month =
-        String(
-            date.getMonth() + 1
-        ).padStart(
-            2,
-            "0"
-        );
-
-
-    const day =
-        String(
-            date.getDate()
-        ).padStart(
-            2,
-            "0"
-        );
-
-
-    return `${year}-${month}-${day}`;
-
-}
-
-
-function createDateString(
-    year,
-    month,
-    day
-) {
-
-    return dateToString(
-        new Date(
-            year,
-            month,
-            day
-        )
-    );
-
-}
-
-
-function isToday(
-    dateString
-) {
-
-    return (
-        dateString ===
-        dateToString(
-            new Date()
-        )
-    );
-
-}
-
-
-function isSameDate(
-    date1,
-    date2
-) {
-
-    return date1 === date2;
-
-}
-
-
-function capitalize(
-    text
-) {
-
-    return (
-        text.charAt(0).toUpperCase() +
-        text.slice(1)
-    );
-
-}
-
-
-function escapeHTML(
-    text
-) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        text;
-
-
-    return div.innerHTML;
-
-}
+);
 
 
 /* =====================================================
-   FECHAR MODAIS CLICANDO FORA
+   MODAIS
 ===================================================== */
 
 document
-    .querySelectorAll(
-        ".modal"
-    )
-    .forEach(
-        modal => {
+    .querySelectorAll(".modal")
+    .forEach(modal => {
 
-            modal.addEventListener(
-                "click",
-                event => {
+        safeAddEventListener(
+            modal,
+            "click",
+            event => {
 
-                    if (
-                        event.target ===
-                        modal
-                    ) {
+                if (
+                    event.target ===
+                    modal
+                ) {
 
-                        modal.classList.remove(
-                            "active"
-                        );
+                    modal.classList.remove(
+                        "active"
+                    );
 
-
-                        editingTaskId =
-                            null;
-
-
-                        editingEventId =
-                            null;
-
-                    }
-
+                    editingTaskId = null;
+                    editingEventId = null;
                 }
-            );
+            }
+        );
+    });
 
+
+/* =====================================================
+   ESTADO DE AUTENTICAÇÃO
+===================================================== */
+
+onAuthStateChanged(
+    auth,
+    user => {
+
+        currentUser =
+            user;
+
+
+        if (user) {
+
+            authScreen.style.display =
+                "none";
+
+
+            loadUserData(user);
+            loadUserProfile(user);
+            loadProfilePhoto();
+            loadPlaylist();
+
+
+            renderTasks();
+            renderCalendar();
+            renderSelectedDay();
+            updateNextEvent();
+
+
+            updateStudyTotals();
+
+        } else {
+
+            authScreen.style.display =
+                "flex";
+
+
+            tasks = [];
+            events = [];
+
+
+            renderTasks();
+            renderCalendar();
+            renderSelectedDay();
+            updateNextEvent();
+
+
+            updateStudyTotals();
         }
-    );
+    }
+);
 
 
 /* =====================================================
@@ -3694,22 +3589,24 @@ updateDate();
 
 loadTheme();
 
+updateFocusDisplay();
+
+updateStudyTotals();
+
 
 /* =====================================================
-   TELA DE ABERTURA
+   SPLASH SCREEN
 ===================================================== */
 
 window.addEventListener(
     "load",
     () => {
 
-        const splashScreen =
-            document.getElementById(
-                "splashScreen"
-            );
+        const splash =
+            $("splashScreen");
 
 
-        if (!splashScreen) {
+        if (!splash) {
             return;
         }
 
@@ -3717,13 +3614,12 @@ window.addEventListener(
         setTimeout(
             () => {
 
-                splashScreen.classList.add(
+                splash.classList.add(
                     "hide"
                 );
 
             },
             1800
         );
-
     }
 );
