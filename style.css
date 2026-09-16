@@ -1,913 +1,889 @@
 /* =====================================================
-   BASE
+   STUDYFLOW
+   SCRIPT PRINCIPAL
 ===================================================== */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+
+import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+
+/* =====================================================
+   FIREBASE
+===================================================== */
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCZT5mqAe_51jGQEf8c32pZG2KPkHad6Ew",
+    authDomain: "syudyflow.firebaseapp.com",
+    projectId: "syudyflow",
+    storageBucket: "syudyflow.firebasestorage.app",
+    messagingSenderId: "8547044265",
+    appId: "1:8547044265:web:ff16de0c1d64eea57452b8",
+    measurementId: "G-32LRCSB3H1"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+
+const auth = getAuth(firebaseApp);
+
+const googleProvider =
+    new GoogleAuthProvider();
+
+
+/* =====================================================
+   ESTADO GLOBAL
+===================================================== */
+
+let currentUser = null;
+
+let authMode = "login";
+
+let tasks = [];
+
+let events = [];
+
+let currentFilter = "all";
+
+let currentCalendarDate = new Date();
+
+let selectedDate = new Date();
+
+let editingTaskId = null;
+
+let editingEventId = null;
+
+
+/* =====================================================
+   FUNÇÕES AUXILIARES
+===================================================== */
+
+const $ = id =>
+    document.getElementById(id);
+
+
+function safeAddEventListener(
+    element,
+    event,
+    callback
+) {
+
+    if (!element) {
+        return;
+    }
+
+    element.addEventListener(
+        event,
+        callback
+    );
 }
 
-:root {
-    --background: #f7f5fb;
-    --card: #ffffff;
-    --sidebar: #ffffff;
-    --text: #292633;
-    --muted: #85808f;
-    --primary: #9b8bd4;
-    --primary-light: #eeeafb;
-    --border: #ece9f0;
-    --high: #d98c97;
-    --medium: #dfc47e;
-    --low: #9cbea8;
-    --shadow: 0 10px 30px rgba(70, 55, 90, 0.07);
+
+function escapeHTML(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        text ?? "";
+
+    return div.innerHTML;
 }
 
-body {
-    font-family:
-        "Segoe UI",
-        Arial,
-        sans-serif;
 
-    background: var(--background);
-    color: var(--text);
+function capitalize(text) {
 
-    transition:
-        background 0.3s,
-        color 0.3s;
+    if (!text) {
+        return "";
+    }
+
+    return (
+        text.charAt(0).toUpperCase() +
+        text.slice(1)
+    );
 }
 
-button,
-input,
-select,
-textarea {
-    font: inherit;
+
+function dateToString(date) {
+
+    const year =
+        date.getFullYear();
+
+    const month =
+        String(
+            date.getMonth() + 1
+        ).padStart(2, "0");
+
+    const day =
+        String(
+            date.getDate()
+        ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
 }
 
-button {
-    border: none;
-    cursor: pointer;
+
+function createDateString(
+    year,
+    month,
+    day
+) {
+
+    return dateToString(
+        new Date(
+            year,
+            month,
+            day
+        )
+    );
+}
+
+
+function formatDate(dateString) {
+
+    if (!dateString) {
+        return "Sem prazo";
+    }
+
+    const date =
+        new Date(
+            `${dateString}T00:00:00`
+        );
+
+    return date.toLocaleDateString(
+        "pt-BR"
+    );
+}
+
+
+function isToday(dateString) {
+
+    return (
+        dateString ===
+        dateToString(
+            new Date()
+        )
+    );
+}
+
+
+function isSameDate(
+    date1,
+    date2
+) {
+
+    return date1 === date2;
 }
 
 
 /* =====================================================
-   TEMAS
+   ELEMENTOS
 ===================================================== */
 
-body[data-theme="dark"] {
-    --background: #24232b;
-    --card: #302e38;
-    --sidebar: #2b2932;
-    --text: #eeeaf2;
-    --muted: #aaa5b2;
-    --primary: #aa9bd5;
-    --primary-light: #403b50;
-    --border: #44404d;
-    --shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
-}
+const authScreen =
+    $("authScreen");
 
-body[data-theme="blue"] {
-    --background: #f1f6f8;
-    --card: #ffffff;
-    --sidebar: #ffffff;
-    --text: #293238;
-    --muted: #7b878d;
-    --primary: #8eafc1;
-    --primary-light: #e5eff3;
-}
+const authForm =
+    $("authForm");
 
-body[data-theme="rose"] {
-    --background: #faf4f6;
-    --card: #ffffff;
-    --sidebar: #ffffff;
-    --text: #332d31;
-    --muted: #8d7f84;
-    --primary: #c596a7;
-    --primary-light: #f2e4e9;
-}
+const authName =
+    $("authName");
 
-body[data-theme="sage"] {
-    --background: #f3f7f4;
-    --card: #ffffff;
-    --sidebar: #ffffff;
-    --text: #2e3832;
-    --muted: #7f8d83;
-    --primary: #94ad9d;
-    --primary-light: #e4eee7;
-}
+const authNameContainer =
+    $("authNameContainer");
 
-body[data-theme="cream"] {
-    --background: #f8f4eb;
-    --card: #fffdf8;
-    --sidebar: #fffdf8;
-    --text: #39352e;
-    --muted: #8d8577;
-    --primary: #b4a17c;
-    --primary-light: #eee8da;
-}
+const authEmail =
+    $("authEmail");
 
+const authPassword =
+    $("authPassword");
 
-/* =====================================================
-   TELA DE LOGIN / AUTENTICAÇÃO
-===================================================== */
+const emailSubmit =
+    $("emailSubmit");
 
-.auth-screen {
-    position: fixed;
-    inset: 0;
+const googleLogin =
+    $("googleLogin");
 
-    z-index: 9999;
+const toggleAuthMode =
+    $("toggleAuthMode");
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+const authModeText =
+    $("authModeText");
 
-    padding: 24px;
-
-    background: #f7f5f8;
-}
-
-.auth-card {
-    width: 100%;
-    max-width: 430px;
-
-    padding: 36px;
-
-    background: #ffffff;
-
-    border-radius: 28px;
-
-    box-shadow:
-        0 20px 60px rgba(100, 90, 120, 0.12);
-
-    box-sizing: border-box;
-}
-
-.auth-logo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    gap: 12px;
-
-    margin-bottom: 10px;
-}
-
-.auth-logo h1 {
-    margin: 0;
-    color: #4e4655;
-}
-
-.auth-logo .logo-icon {
-    width: 42px;
-    height: 42px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 14px;
-
-    background: #d8cfe2;
-    color: #4e4655;
-
-    font-weight: 700;
-}
-
-.auth-subtitle {
-    margin: 0 0 24px;
-
-    text-align: center;
-
-    color: #77717c;
-}
-
-
-/* =====================================================
-   BOTÕES SOCIAIS
-===================================================== */
-
-.auth-social-buttons {
-    display: flex;
-    flex-direction: column;
-
-    gap: 10px;
-}
-
-.auth-social-button {
-    width: 100%;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    gap: 12px;
-
-    padding: 13px 16px;
-
-    border: 1px solid #e3dfe6;
-    border-radius: 14px;
-
-    background: #ffffff;
-    color: #4e4655;
-
-    font: inherit;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    transition:
-        transform 0.2s ease,
-        background 0.2s ease,
-        border-color 0.2s ease;
-}
-
-.auth-social-button:hover {
-    transform: translateY(-1px);
-
-    background: #faf8fb;
-
-    border-color: #cfc5d8;
-}
-
-.auth-social-icon {
-    width: 24px;
-    height: 24px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 7px;
-
-    background: #f1edf4;
-    color: #5a5262;
-
-    font-size: 13px;
-    font-weight: 700;
-}
-
-
-/* =====================================================
-   SEPARADOR
-===================================================== */
-
-.auth-divider {
-    display: flex;
-    align-items: center;
-
-    gap: 12px;
-
-    margin: 24px 0;
-
-    color: #99929e;
-}
-
-.auth-divider::before,
-.auth-divider::after {
-    content: "";
-
-    flex: 1;
-
-    height: 1px;
-
-    background: #e6e1e8;
-}
-
-.auth-divider span {
-    font-size: 12px;
-    font-weight: 600;
-}
-
-
-/* =====================================================
-   CAMPOS DA AUTENTICAÇÃO
-===================================================== */
-
-.auth-field-container {
-    margin-bottom: 14px;
-}
-
-.auth-field-container label {
-    display: block;
-
-    margin-bottom: 7px;
-
-    color: #5c5563;
-
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.auth-card input {
-    width: 100%;
-
-    box-sizing: border-box;
-
-    padding: 14px 16px;
-
-    border: 1px solid #e3dfe6;
-    border-radius: 14px;
-
-    background: #faf9fb;
-    color: #4e4655;
-
-    font: inherit;
-
-    outline: none;
-
-    transition:
-        border-color 0.2s ease,
-        background 0.2s ease;
-}
-
-.auth-card input::placeholder {
-    color: #aaa4af;
-}
-
-.auth-card input:focus {
-    border-color: #b9abc5;
-    background: #ffffff;
-}
-
-
-/* =====================================================
-   BOTÃO DE AUTENTICAÇÃO
-===================================================== */
-
-.auth-button {
-    width: 100%;
-
-    padding: 14px 18px;
-
-    margin-top: 6px;
-
-    border: none;
-    border-radius: 14px;
-
-    background: #e5e0e8;
-    color: #aaa3ad;
-
-    font: inherit;
-    font-weight: 600;
-
-    cursor: not-allowed;
-
-    transition:
-        background 0.2s ease,
-        color 0.2s ease,
-        transform 0.2s ease;
-}
-
-.auth-button:disabled {
-    opacity: 1;
-}
-
-.auth-button:not(:disabled) {
-    background: #d8cfe2;
-    color: #4e4655;
-
-    cursor: pointer;
-}
-
-.auth-button:not(:disabled):hover {
-    transform: translateY(-1px);
-    background: #cec2d8;
-}
-
-
-/* =====================================================
-   LOGIN / CADASTRO
-===================================================== */
-
-.auth-mode-switch {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    gap: 6px;
-
-    margin-top: 20px;
-
-    color: #77717c;
-
-    font-size: 13px;
-}
-
-.auth-mode-switch button {
-    padding: 0;
-
-    border: none;
-
-    background: transparent;
-
-    color: #71627d;
-
-    font: inherit;
-    font-weight: 700;
-
-    cursor: pointer;
-}
-
-.auth-mode-switch button:hover {
-    text-decoration: underline;
-}
+const authMessage =
+    $("authMessage");
 
 
 /* =====================================================
    MENSAGEM DE AUTENTICAÇÃO
 ===================================================== */
 
-.auth-message {
-    min-height: 20px;
+function showAuthMessage(message) {
 
-    margin-top: 16px;
-
-    text-align: center;
-
-    color: #8a6678;
-
-    font-size: 14px;
+    if (authMessage) {
+        authMessage.textContent =
+            message;
+    }
 }
 
 
 /* =====================================================
-   APP
+   BOTÃO DE LOGIN
 ===================================================== */
 
-.app {
-    min-height: 100vh;
+function updateAuthButton() {
+
+    if (
+        !authEmail ||
+        !authPassword ||
+        !emailSubmit
+    ) {
+        return;
+    }
+
+    const email =
+        authEmail.value.trim();
+
+    const password =
+        authPassword.value;
+
+    const name =
+        authName
+            ? authName.value.trim()
+            : "";
+
+
+    if (authMode === "login") {
+
+        emailSubmit.disabled =
+            !email ||
+            password.length === 0;
+
+        return;
+    }
+
+
+    emailSubmit.disabled =
+        !name ||
+        !email ||
+        password.length < 6;
 }
 
 
 /* =====================================================
-   SIDEBAR
+   ALTERAR LOGIN / CADASTRO
 ===================================================== */
 
-.sidebar {
-    width: 240px;
+function updateAuthMode() {
 
-    position: fixed;
+    const register =
+        authMode === "register";
 
-    top: 0;
-    bottom: 0;
-    left: 0;
 
-    padding: 28px 18px;
+    if (authNameContainer) {
 
-    background: var(--sidebar);
+        authNameContainer.style.display =
+            register
+                ? "block"
+                : "none";
+    }
 
-    border-right:
-        1px solid var(--border);
 
-    z-index: 20;
+    if (emailSubmit) {
+
+        emailSubmit.textContent =
+            register
+                ? "Criar conta"
+                : "Entrar";
+    }
+
+
+    if (authModeText) {
+
+        authModeText.textContent =
+            register
+                ? "Já possui uma conta?"
+                : "Não possui uma conta?";
+    }
+
+
+    if (toggleAuthMode) {
+
+        toggleAuthMode.textContent =
+            register
+                ? "Entrar"
+                : "Criar conta";
+    }
+
+
+    showAuthMessage("");
+
+    updateAuthButton();
 }
 
-.logo {
-    display: flex;
-    align-items: center;
 
-    gap: 10px;
+/* =====================================================
+   AUTENTICAÇÃO POR E-MAIL
+===================================================== */
 
-    font-size: 20px;
-    font-weight: 700;
+safeAddEventListener(
+    authEmail,
+    "input",
+    updateAuthButton
+);
 
-    margin-bottom: 45px;
+safeAddEventListener(
+    authPassword,
+    "input",
+    updateAuthButton
+);
 
-    padding-left: 8px;
-}
+safeAddEventListener(
+    authName,
+    "input",
+    updateAuthButton
+);
 
-.logo-icon {
-    width: 36px;
-    height: 36px;
 
-    border-radius: 12px;
+safeAddEventListener(
+    toggleAuthMode,
+    "click",
+    () => {
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+        authMode =
+            authMode === "login"
+                ? "register"
+                : "login";
 
-    background:
-        linear-gradient(
-            135deg,
-            var(--primary),
-            #d7baca
+        updateAuthMode();
+    }
+);
+
+
+/* =====================================================
+   LOGIN / CADASTRO
+===================================================== */
+
+safeAddEventListener(
+    authForm,
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+
+        const email =
+            authEmail.value.trim();
+
+        const password =
+            authPassword.value;
+
+        const name =
+            authName
+                ? authName.value.trim()
+                : "";
+
+
+        if (!email || !password) {
+            return;
+        }
+
+
+        emailSubmit.disabled =
+            true;
+
+        showAuthMessage("");
+
+
+        try {
+
+            if (authMode === "login") {
+
+                await signInWithEmailAndPassword(
+                    auth,
+                    email,
+                    password
+                );
+
+                return;
+            }
+
+
+            if (!name) {
+
+                showAuthMessage(
+                    "Digite seu nome."
+                );
+
+                return;
+            }
+
+
+            if (password.length < 6) {
+
+                showAuthMessage(
+                    "A senha precisa ter pelo menos 6 caracteres."
+                );
+
+                return;
+            }
+
+
+            const credential =
+                await createUserWithEmailAndPassword(
+                    auth,
+                    email,
+                    password
+                );
+
+
+            await updateProfile(
+                credential.user,
+                {
+                    displayName: name
+                }
+            );
+
+
+            await credential.user.reload();
+
+
+        } catch (error) {
+
+            console.error(
+                "Erro de autenticação:",
+                error
+            );
+
+
+            switch (error.code) {
+
+                case "auth/user-not-found":
+
+                    showAuthMessage(
+                        "Usuário não encontrado."
+                    );
+
+                    break;
+
+
+                case "auth/invalid-credential":
+
+                    showAuthMessage(
+                        "Usuário não encontrado ou senha incorreta."
+                    );
+
+                    break;
+
+
+                case "auth/wrong-password":
+
+                    showAuthMessage(
+                        "Senha incorreta."
+                    );
+
+                    break;
+
+
+                case "auth/email-already-in-use":
+
+                    showAuthMessage(
+                        "Esse e-mail já possui uma conta."
+                    );
+
+                    break;
+
+
+                case "auth/invalid-email":
+
+                    showAuthMessage(
+                        "Digite um e-mail válido."
+                    );
+
+                    break;
+
+
+                case "auth/weak-password":
+
+                    showAuthMessage(
+                        "A senha precisa ter pelo menos 6 caracteres."
+                    );
+
+                    break;
+
+
+                default:
+
+                    showAuthMessage(
+                        "Não foi possível acessar a conta."
+                    );
+            }
+
+
+        } finally {
+
+            updateAuthButton();
+        }
+    }
+);
+
+
+/* =====================================================
+   GOOGLE
+===================================================== */
+
+async function loginWithGoogle() {
+
+    showAuthMessage(
+        "Abrindo login do Google..."
+    );
+
+
+    try {
+
+        await signInWithPopup(
+            auth,
+            googleProvider
         );
 
-    color: white;
-
-    font-weight: 800;
-}
-
-.sidebar nav {
-    display: flex;
-    flex-direction: column;
-
-    gap: 7px;
-}
-
-.nav-item {
-    width: 100%;
-
-    display: flex;
-    align-items: center;
-
-    gap: 13px;
-
-    padding: 13px 14px;
-
-    border-radius: 14px;
-
-    background: transparent;
-
-    color: var(--muted);
-
-    text-align: left;
-
-    transition: 0.2s;
-}
-
-.nav-item:hover {
-    background: var(--primary-light);
-    color: var(--primary);
-}
-
-.nav-item.active {
-    background: var(--primary-light);
-    color: var(--primary);
-
-    font-weight: 600;
-}
-
-.nav-item span:first-child {
-    width: 22px;
-    text-align: center;
-}
-
-
-/* =====================================================
-   MAIN
-===================================================== */
-
-.main {
-    width:
-        calc(100% - 240px);
-
-    margin-left: 240px;
-
-    padding:
-        38px 48px 80px;
-}
-
-
-/* =====================================================
-   HEADER
-===================================================== */
-
-.header {
-    display: flex;
-
-    justify-content: space-between;
-    align-items: center;
-
-    margin-bottom: 35px;
-}
-
-.date,
-.small-title {
-    color: var(--primary);
-
-    font-size: 12px;
-    font-weight: 700;
-
-    text-transform: uppercase;
-
-    letter-spacing: 0.08em;
-}
-
-.header h1 {
-    margin-top: 6px;
-    font-size: 32px;
-}
-
-.subtitle {
-    color: var(--muted);
-    margin-top: 6px;
-}
-
-.avatar {
-    width: 48px;
-    height: 48px;
-
-    border-radius: 50%;
-
-    object-fit: cover;
-}
-
-.avatar-initial {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: var(--primary-light);
-    color: var(--primary);
-
-    font-weight: 700;
-}
-
-
-/* =====================================================
-   SCREENS
-===================================================== */
-
-.screen {
-    display: none;
-}
-
-.screen.active {
-    display: block;
-}
-
-
-/* =====================================================
-   TÍTULOS
-===================================================== */
-
-.page-title {
-    margin-bottom: 28px;
-}
-
-.page-title h2 {
-    font-size: 30px;
-    margin: 5px 0;
-}
-
-.page-title p:last-child {
-    color: var(--muted);
-}
-
-.calendar-title {
-    display: flex;
-
-    justify-content: space-between;
-    align-items: center;
-}
-
-
-/* =====================================================
-   CARDS
-===================================================== */
-
-.card {
-    background: var(--card);
-
-    border:
-        1px solid var(--border);
-
-    border-radius: 22px;
-
-    padding: 25px;
-
-    box-shadow: var(--shadow);
-
-    margin-bottom: 22px;
-}
-
-.card-header {
-    display: flex;
-
-    align-items: center;
-    justify-content: space-between;
-
-    margin-bottom: 22px;
-}
-
-.card-header h2 {
-    margin-top: 4px;
-}
-
-
-/* =====================================================
-   STATS
-===================================================== */
-
-.stats-grid {
-    display: grid;
-
-    grid-template-columns:
-        repeat(3, 1fr);
-
-    gap: 18px;
-
-    margin-bottom: 22px;
-}
-
-.stat-card {
-    background: var(--card);
-
-    border:
-        1px solid var(--border);
-
-    border-radius: 20px;
-
-    padding: 22px;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 15px;
-
-    box-shadow: var(--shadow);
-}
-
-.stat-card p {
-    color: var(--muted);
-
-    font-size: 13px;
-
-    margin-bottom: 5px;
-}
-
-.stat-card strong {
-    font-size: 27px;
-}
-
-.stat-icon {
-    width: 45px;
-    height: 45px;
-
-    border-radius: 14px;
-
-    background: var(--primary-light);
-    color: var(--primary);
-
-    display: flex;
-
-    justify-content: center;
-    align-items: center;
-
-    font-size: 20px;
-}
-
-
-/* =====================================================
-   DASHBOARD
-===================================================== */
-
-.dashboard-grid {
-    display: grid;
-
-    grid-template-columns:
-        1fr 1fr;
-
-    gap: 22px;
-
-    margin-bottom: 22px;
-}
-
-.daily-progress {
-    text-align: center;
-}
-
-
-/* =====================================================
-   CÍRCULO
-===================================================== */
-
-.progress-circle {
-    width: 170px;
-    height: 170px;
-
-    margin: 25px auto;
-
-    border-radius: 50%;
-
-    background:
-        conic-gradient(
-            var(--primary) 0deg,
-            var(--primary-light) 0deg
+    } catch (error) {
+
+        console.error(
+            "Erro no Google:",
+            error
         );
 
-    display: flex;
 
-    justify-content: center;
-    align-items: center;
+        if (
+            error.code ===
+            "auth/popup-closed-by-user"
+        ) {
 
-    position: relative;
+            showAuthMessage(
+                "A janela de login foi fechada."
+            );
+
+        } else if (
+            error.code ===
+            "auth/popup-blocked"
+        ) {
+
+            showAuthMessage(
+                "O navegador bloqueou a janela de login."
+            );
+
+        } else {
+
+            showAuthMessage(
+                "Não foi possível entrar com o Google."
+            );
+        }
+    }
 }
 
-.progress-circle::before {
-    content: "";
 
-    position: absolute;
+safeAddEventListener(
+    googleLogin,
+    "click",
+    loginWithGoogle
+);
 
-    width: 135px;
-    height: 135px;
 
-    background: var(--card);
+/* =====================================================
+   PERFIL
+===================================================== */
 
-    border-radius: 50%;
+function updateProfileInitial(name) {
+
+    const initial =
+        name
+            ?.trim()
+            .charAt(0)
+            .toUpperCase() || "S";
+
+
+    const profileInitial =
+        $("profileInitial");
+
+    const headerInitial =
+        $("headerProfileInitial");
+
+
+    if (profileInitial) {
+
+        profileInitial.textContent =
+            initial;
+    }
+
+
+    if (headerInitial) {
+
+        headerInitial.textContent =
+            initial;
+    }
 }
 
-.progress-circle div {
-    position: relative;
-    z-index: 1;
 
-    display: flex;
-    flex-direction: column;
-}
+function loadUserProfile(user) {
 
-.progress-circle strong {
-    font-size: 32px;
-}
+    if (!user) {
+        return;
+    }
 
-.progress-circle span {
-    color: var(--muted);
 
-    font-size: 12px;
-}
+    const name =
+        user.displayName ||
+        "Estudante";
 
-.progress-description {
-    color: var(--muted);
+    const email =
+        user.email ||
+        "Conta StudyFlow";
+
+
+    const profileName =
+        $("profileName");
+
+    const profileEmail =
+        $("profileEmail");
+
+    const welcomeName =
+        $("welcomeName");
+
+
+    if (profileName) {
+
+        profileName.textContent =
+            name;
+    }
+
+
+    if (profileEmail) {
+
+        profileEmail.textContent =
+            email;
+    }
+
+
+    if (welcomeName) {
+
+        welcomeName.textContent =
+            name;
+    }
+
+
+    updateProfileInitial(name);
 }
 
 
 /* =====================================================
-   EMPTY
+   DADOS
 ===================================================== */
 
-.empty-state {
-    text-align: center;
+function getTasksKey() {
 
-    padding: 35px 15px;
-
-    color: var(--muted);
+    return currentUser
+        ? `studyflow_tasks_${currentUser.uid}`
+        : null;
 }
 
-.empty-icon {
-    width: 55px;
-    height: 55px;
 
-    border-radius: 18px;
+function getEventsKey() {
 
-    margin: 0 auto 15px;
-
-    display: flex;
-
-    justify-content: center;
-    align-items: center;
-
-    background: var(--primary-light);
-    color: var(--primary);
-
-    font-size: 22px;
+    return currentUser
+        ? `studyflow_events_${currentUser.uid}`
+        : null;
 }
 
-.empty-state h3 {
-    color: var(--text);
 
-    margin-bottom: 6px;
+function saveTasks() {
+
+    const key =
+        getTasksKey();
+
+    if (!key) {
+        return;
+    }
+
+    localStorage.setItem(
+        key,
+        JSON.stringify(tasks)
+    );
 }
 
-.empty-state p {
-    font-size: 14px;
+
+function saveEvents() {
+
+    const key =
+        getEventsKey();
+
+    if (!key) {
+        return;
+    }
+
+    localStorage.setItem(
+        key,
+        JSON.stringify(events)
+    );
+}
+
+
+function loadUserData(user) {
+
+    if (!user) {
+        tasks = [];
+        events = [];
+        return;
+    }
+
+
+    const storedTasks =
+        localStorage.getItem(
+            `studyflow_tasks_${user.uid}`
+        );
+
+    const storedEvents =
+        localStorage.getItem(
+            `studyflow_events_${user.uid}`
+        );
+
+
+    try {
+
+        tasks =
+            storedTasks
+                ? JSON.parse(storedTasks)
+                : [];
+
+        events =
+            storedEvents
+                ? JSON.parse(storedEvents)
+                : [];
+
+
+        if (!Array.isArray(tasks)) {
+            tasks = [];
+        }
+
+        if (!Array.isArray(events)) {
+            events = [];
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Erro ao carregar dados:",
+            error
+        );
+
+        tasks = [];
+        events = [];
+    }
 }
 
 
 /* =====================================================
-   BOTÕES DO APLICATIVO
+   NAVEGAÇÃO
 ===================================================== */
 
-.primary-button,
-.secondary-button {
-    border-radius: 13px;
+function showScreen(screenName) {
 
-    padding:
-        12px 17px;
+    document
+        .querySelectorAll(".screen")
+        .forEach(screen => {
 
-    transition: 0.2s;
+            screen.classList.toggle(
+                "active",
+                screen.id === screenName
+            );
+        });
+
+
+    document
+        .querySelectorAll(
+            ".nav-item"
+        )
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.screen ===
+                screenName
+            );
+        });
+
+
+    if (screenName === "calendar") {
+
+        renderCalendar();
+        renderSelectedDay();
+    }
+
+
+    if (screenName === "progress") {
+
+        updateStats();
+        updateStudyTotals();
+    }
+
+    if (screenName === "subjects") {
+    updateSubjects();
+    }
 }
 
-.primary-button {
-    background: var(--primary);
-    color: white;
 
-    font-weight: 600;
-}
+document
+    .querySelectorAll(
+        ".nav-item[data-screen], [data-screen]"
+    )
+    .forEach(button => {
 
-.primary-button:hover {
-    transform: translateY(-1px);
-    opacity: 0.9;
-}
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
 
-.secondary-button {
-    background: var(--primary-light);
-    color: var(--primary);
-}
+                const screen =
+                    button.dataset.screen;
 
-.full {
-    width: 100%;
-    margin-top: 10px;
+                if (screen) {
+                    showScreen(screen);
+                }
+            }
+        );
+    });
+
+
+/* =====================================================
+   DATA
+===================================================== */
+
+function updateDate() {
+
+    const element =
+        $("currentDate");
+
+    if (!element) {
+        return;
+    }
+
+
+    element.textContent =
+        new Date().toLocaleDateString(
+            "pt-BR",
+            {
+                weekday: "long",
+                day: "numeric",
+                month: "long"
+            }
+        );
 }
 
 
@@ -915,211 +891,627 @@ body[data-theme="cream"] {
    TAREFAS
 ===================================================== */
 
-.task-page-header {
-    display: flex;
+function getPriorityLabel(priority) {
 
-    justify-content: space-between;
-    align-items: center;
+    if (priority === "high") {
+        return "alta";
+    }
+
+    if (priority === "low") {
+        return "baixa";
+    }
+
+    return "normal";
 }
 
-.task-filters {
-    display: flex;
 
-    gap: 8px;
+function createTaskElement(
+    task,
+    compact = false
+) {
 
-    margin-bottom: 18px;
+    const element =
+        document.createElement("div");
+
+
+    element.className =
+        "task";
+
+
+    if (task.completed) {
+        element.classList.add("completed");
+    }
+
+
+    element.innerHTML = `
+        <span
+            class="priority-dot priority-${task.priority}"
+            title="Prioridade ${getPriorityLabel(task.priority)}"
+        ></span>
+
+        <button
+            class="task-check"
+            type="button"
+            title="${task.completed ? "Desmarcar tarefa" : "Concluir tarefa"}"
+        >
+            ${task.completed ? "✓" : ""}
+        </button>
+
+        <div class="task-info">
+
+            <h3>
+                ${escapeHTML(task.title)}
+            </h3>
+
+            <p>
+                ${escapeHTML(task.subject)}
+                ${
+                    task.date
+                        ? ` • ${formatDate(task.date)}`
+                        : ""
+                }
+            </p>
+
+        </div>
+
+        ${
+            compact
+                ? ""
+                : `
+                    <div class="task-actions">
+
+                        <button
+                            class="edit-task"
+                            type="button"
+                            title="Editar tarefa"
+                        >
+                            ✎
+                        </button>
+
+                        <button
+                            class="delete-task"
+                            type="button"
+                            title="Excluir tarefa"
+                        >
+                            ×
+                        </button>
+
+                    </div>
+                `
+        }
+    `;
+
+
+    safeAddEventListener(
+        element.querySelector(".task-check"),
+        "click",
+        () => toggleTask(task.id)
+    );
+
+
+    if (!compact) {
+
+        safeAddEventListener(
+            element.querySelector(".edit-task"),
+            "click",
+            () => editTask(task.id)
+        );
+
+
+        safeAddEventListener(
+            element.querySelector(".delete-task"),
+            "click",
+            () => deleteTask(task.id)
+        );
+    }
+
+
+    return element;
 }
 
-.filter {
-    padding:
-        9px 15px;
 
-    border-radius: 12px;
+function renderTasks() {
 
-    background: var(--card);
+    const taskList =
+        $("taskList");
 
-    color: var(--muted);
+    const homeTaskList =
+        $("homeTaskList");
+
+    const emptyTasks =
+        $("emptyTasks");
+
+
+    if (!taskList || !homeTaskList) {
+        return;
+    }
+
+
+    taskList.innerHTML = "";
+    homeTaskList.innerHTML = "";
+
+
+    let filtered =
+        [...tasks];
+
+
+    if (currentFilter === "pending") {
+
+        filtered =
+            tasks.filter(
+                task => !task.completed
+            );
+    }
+
+
+    if (currentFilter === "completed") {
+
+        filtered =
+            tasks.filter(
+                task => task.completed
+            );
+    }
+
+
+    if (emptyTasks) {
+
+        emptyTasks.style.display =
+            filtered.length === 0
+                ? "block"
+                : "none";
+    }
+
+
+    filtered.forEach(task => {
+
+        taskList.appendChild(
+            createTaskElement(task)
+        );
+    });
+
+
+    tasks
+        .filter(task => !task.completed)
+        .slice(0, 4)
+        .forEach(task => {
+
+            homeTaskList.appendChild(
+                createTaskElement(
+                    task,
+                    true
+                )
+            );
+        });
+
+
+    updateStats();
+    renderCalendar();
+    renderSelectedDay();
+    updateNextEvent();
+    updateSubjects();
 }
 
-.filter.active {
-    background: var(--primary-light);
+function updateSubjects() {
 
-    color: var(--primary);
+    const subjectCards = document.querySelectorAll(".subject-card");
 
-    font-weight: 600;
+    subjectCards.forEach(card => {
+
+        const subject = card.dataset.subject;
+
+        if (!subject) return;
+
+        const subjectTasks = tasks.filter(task => {
+            return task.subject === subject;
+        });
+
+        const pendingTasks = subjectTasks.filter(task => {
+            return !task.completed;
+        });
+
+        const completedTasks = subjectTasks.filter(task => {
+            return task.completed;
+        });
+
+        const pendingElement = card.querySelector(".subject-pending");
+        const completedElement = card.querySelector(".subject-completed");
+
+        if (pendingElement) {
+            pendingElement.textContent =
+                `${pendingTasks.length} ${pendingTasks.length === 1 ? "tarefa pendente" : "tarefas pendentes"}`;
+        }
+
+        if (completedElement) {
+            completedElement.textContent =
+                `${completedTasks.length} ${completedTasks.length === 1 ? "concluída" : "concluídas"}`;
+        }
+
+    });
+
 }
 
-.task-list {
-    display: flex;
+function toggleTask(id) {
 
-    flex-direction: column;
+    tasks =
+        tasks.map(task => {
 
-    gap: 12px;
+            if (task.id === id) {
+
+                return {
+                    ...task,
+                    completed:
+                        !task.completed
+                };
+            }
+
+            return task;
+        });
+
+
+    saveTasks();
+    renderTasks();
 }
 
-.task {
-    display: flex;
 
-    align-items: center;
+function deleteTask(id) {
 
-    gap: 14px;
+    if (
+        !confirm(
+            "Deseja realmente excluir esta tarefa?"
+        )
+    ) {
+        return;
+    }
 
-    padding: 16px;
 
-    border:
-        1px solid var(--border);
+    tasks =
+        tasks.filter(
+            task => task.id !== id
+        );
 
-    border-radius: 15px;
 
-    background: var(--card);
-
-    transition: 0.2s;
+    saveTasks();
+    renderTasks();
 }
 
-.task:hover {
-    transform: translateY(-1px);
-}
 
-.task-check {
-    width: 25px;
-    height: 25px;
+function editTask(id) {
 
-    flex-shrink: 0;
+    const task =
+        tasks.find(
+            item => item.id === id
+        );
 
-    border-radius: 8px;
 
-    border:
-        2px solid #d8d3df;
+    if (!task) {
+        return;
+    }
 
-    display: flex;
 
-    align-items: center;
-    justify-content: center;
+    editingTaskId = id;
 
-    background: var(--card);
 
-    cursor: pointer;
-}
+    const title =
+        $("taskTitle");
 
-.task.completed .task-check {
-    background: var(--primary);
+    const subject =
+        $("taskSubject");
 
-    border-color: var(--primary);
+    const date =
+        $("taskDate");
 
-    color: white;
-}
+    const priority =
+        $("taskPriority");
 
-.task-info {
-    flex: 1;
-}
 
-.task-info h3 {
-    font-size: 15px;
+    if (title) title.value = task.title;
+    if (subject) subject.value = task.subject;
+    if (date) date.value = task.date || "";
+    if (priority) priority.value = task.priority;
 
-    margin-bottom: 5px;
-}
 
-.task.completed h3 {
-    text-decoration: line-through;
+    const modalTitle =
+        $("taskModalTitle");
 
-    color: var(--muted);
-}
+    const submit =
+        $("taskSubmitButton");
 
-.task-info p {
-    color: var(--muted);
 
-    font-size: 12px;
-}
+    if (modalTitle) {
+        modalTitle.textContent =
+            "Editar tarefa";
+    }
 
-.priority-dot {
-    width: 10px;
-    height: 10px;
 
-    border-radius: 50%;
+    if (submit) {
+        submit.textContent =
+            "Salvar alterações";
+    }
 
-    flex-shrink: 0;
-}
 
-.priority-high {
-    background: var(--high);
-
-    box-shadow:
-        0 0 0 4px
-        rgba(217, 140, 151, 0.12);
-}
-
-.priority-medium {
-    background: var(--medium);
-
-    box-shadow:
-        0 0 0 4px
-        rgba(223, 196, 126, 0.12);
-}
-
-.priority-low {
-    background: var(--low);
-
-    box-shadow:
-        0 0 0 4px
-        rgba(156, 190, 168, 0.12);
-}
-
-.edit-task,
-.delete-task {
-    background: transparent;
-
-    color: var(--muted);
-
-    font-size: 18px;
-}
-
-.edit-task:hover {
-    color: var(--primary);
-}
-
-.delete-task:hover {
-    color: var(--high);
+    $("taskModal")?.classList.add(
+        "active"
+    );
 }
 
 
 /* =====================================================
-   MATÉRIAS
+   MODAL DE TAREFA
 ===================================================== */
 
-.subjects-grid {
-    display: grid;
+safeAddEventListener(
+    $("openTaskModal"),
+    "click",
+    () => {
 
-    grid-template-columns:
-        repeat(3, 1fr);
+        editingTaskId = null;
 
-    gap: 18px;
-}
+        $("taskForm")?.reset();
 
-.subject-card {
-    padding: 25px;
+        $("taskModalTitle").textContent =
+            "Nova tarefa";
 
-    background: var(--card);
+        $("taskSubmitButton").textContent =
+            "Criar tarefa";
 
-    border:
-        1px solid var(--border);
+        $("taskModal")?.classList.add(
+            "active"
+        );
+    }
+);
 
-    border-radius: 20px;
 
-    box-shadow: var(--shadow);
-}
+safeAddEventListener(
+    $("closeTaskModal"),
+    "click",
+    () => {
 
-.subject-card span {
-    font-size: 25px;
-}
+        $("taskModal")?.classList.remove(
+            "active"
+        );
 
-.subject-card h3 {
-    margin: 15px 0 6px;
-}
+        editingTaskId = null;
 
-.subject-card p {
-    color: var(--muted);
+        $("taskForm")?.reset();
 
-    font-size: 13px;
+        $("taskModalTitle").textContent =
+            "Nova tarefa";
+
+        $("taskSubmitButton").textContent =
+            "Criar tarefa";
+    }
+);
+
+
+safeAddEventListener(
+    $("taskForm"),
+    "submit",
+    event => {
+
+        event.preventDefault();
+
+
+        const title =
+            $("taskTitle")?.value.trim();
+
+        const subject =
+            $("taskSubject")?.value;
+
+        const date =
+            $("taskDate")?.value;
+
+        const priority =
+            $("taskPriority")?.value;
+
+
+        if (!title) {
+            return;
+        }
+
+
+        if (editingTaskId !== null) {
+
+            tasks =
+                tasks.map(task => {
+
+                    if (
+                        task.id ===
+                        editingTaskId
+                    ) {
+
+                        return {
+                            ...task,
+                            title,
+                            subject,
+                            date,
+                            priority
+                        };
+                    }
+
+                    return task;
+                });
+
+        } else {
+
+            tasks.push({
+                id: Date.now(),
+                title,
+                subject,
+                date,
+                priority,
+                completed: false
+            });
+        }
+
+
+        saveTasks();
+        renderTasks();
+
+
+        $("taskForm")?.reset();
+        $("taskModal")?.classList.remove(
+            "active"
+        );
+
+
+        editingTaskId = null;
+
+
+        $("taskModalTitle").textContent =
+            "Nova tarefa";
+
+        $("taskSubmitButton").textContent =
+            "Criar tarefa";
+    }
+);
+
+
+/* =====================================================
+   FILTROS
+===================================================== */
+
+document
+    .querySelectorAll(".filter")
+    .forEach(button => {
+
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
+
+                document
+                    .querySelectorAll(".filter")
+                    .forEach(
+                        item =>
+                            item.classList.remove(
+                                "active"
+                            )
+                    );
+
+
+                button.classList.add(
+                    "active"
+                );
+
+
+                currentFilter =
+                    button.dataset.filter;
+
+
+                renderTasks();
+            }
+        );
+    });
+
+
+/* =====================================================
+   ESTATÍSTICAS
+===================================================== */
+
+function updateStats() {
+
+    const completed =
+        tasks.filter(
+            task => task.completed
+        ).length;
+
+
+    const pending =
+        tasks.filter(
+            task => !task.completed
+        ).length;
+
+
+    const total =
+        tasks.length;
+
+
+    const percentage =
+        total === 0
+            ? 0
+            : Math.round(
+                completed / total * 100
+            );
+
+
+    const values = {
+        completedCount: completed,
+        pendingCount: pending,
+        dailyPercentage: `${percentage}%`,
+        progressCompleted: completed,
+        progressPending: pending,
+        progressTotal: `${percentage}%`,
+        largeProgressText:
+            `${completed} de ${total} tarefas concluídas`
+    };
+
+
+    Object.entries(values)
+        .forEach(
+            ([id, value]) => {
+
+                const element =
+                    $(id);
+
+                if (element) {
+                    element.textContent =
+                        value;
+                }
+            }
+        );
+
+
+    const bar =
+        $("largeProgressBar");
+
+    if (bar) {
+        bar.style.width =
+            `${percentage}%`;
+    }
+
+
+    const circle =
+        document.querySelector(
+            ".progress-circle"
+        );
+
+
+    if (circle) {
+
+        circle.style.background =
+            `conic-gradient(
+                var(--primary)
+                ${percentage * 3.6}deg,
+                var(--primary-light)
+                ${percentage * 3.6}deg
+            )`;
+    }
+
+
+    const description =
+        $("progressDescription");
+
+
+    if (!description) {
+        return;
+    }
+
+
+    if (total === 0) {
+
+        description.textContent =
+            "Você ainda não possui tarefas.";
+
+    } else if (percentage === 100) {
+
+        description.textContent =
+            "Todas as tarefas foram concluídas!";
+
+    } else {
+
+        description.textContent =
+            `${pending} tarefa(s) ainda precisam de atenção.`;
+    }
 }
 
 
@@ -1127,1018 +1519,2107 @@ body[data-theme="cream"] {
    CALENDÁRIO
 ===================================================== */
 
-.calendar-header {
-    display: flex;
+function renderCalendar() {
 
-    justify-content: space-between;
-    align-items: center;
+    const grid =
+        $("calendarGrid");
 
-    margin-bottom: 25px;
+    const monthTitle =
+        $("calendarMonth");
+
+
+    if (!grid || !monthTitle) {
+        return;
+    }
+
+
+    grid.innerHTML = "";
+
+
+    const year =
+        currentCalendarDate.getFullYear();
+
+    const month =
+        currentCalendarDate.getMonth();
+
+
+    monthTitle.textContent =
+        capitalize(
+            currentCalendarDate.toLocaleDateString(
+                "pt-BR",
+                {
+                    month: "long",
+                    year: "numeric"
+                }
+            )
+        );
+
+
+    const firstDay =
+        new Date(
+            year,
+            month,
+            1
+        ).getDay();
+
+
+    const daysInMonth =
+        new Date(
+            year,
+            month + 1,
+            0
+        ).getDate();
+
+
+    for (
+        let i = 0;
+        i < firstDay;
+        i++
+    ) {
+
+        grid.appendChild(
+            document.createElement("div")
+        );
+    }
+
+
+    for (
+        let day = 1;
+        day <= daysInMonth;
+        day++
+    ) {
+
+        const cell =
+            document.createElement("div");
+
+
+        cell.className =
+            "calendar-day";
+
+
+        const dateString =
+            createDateString(
+                year,
+                month,
+                day
+            );
+
+
+        if (isToday(dateString)) {
+
+            cell.classList.add(
+                "today"
+            );
+        }
+
+
+        if (
+            isSameDate(
+                dateString,
+                dateToString(selectedDate)
+            )
+        ) {
+
+            cell.classList.add(
+                "selected"
+            );
+        }
+
+
+        cell.innerHTML = `
+            <div class="day-number">
+                ${day}
+            </div>
+
+            <div class="calendar-items"></div>
+        `;
+
+
+        const items =
+            cell.querySelector(
+                ".calendar-items"
+            );
+
+
+        tasks
+            .filter(
+                task =>
+                    task.date === dateString &&
+                    !task.completed
+            )
+            .forEach(task => {
+
+                const item =
+                    document.createElement("div");
+
+                item.className =
+                    "calendar-item calendar-task";
+
+                item.textContent =
+                    task.title;
+
+                items.appendChild(item);
+            });
+
+
+        events
+            .filter(
+                event =>
+                    event.date === dateString
+            )
+            .forEach(event => {
+
+                const item =
+                    document.createElement("div");
+
+                item.className =
+                    "calendar-item calendar-event";
+
+                item.textContent =
+                    event.title;
+
+                items.appendChild(item);
+            });
+
+
+        cell.addEventListener(
+            "click",
+            () => {
+
+                selectedDate =
+                    new Date(
+                        year,
+                        month,
+                        day
+                    );
+
+                renderCalendar();
+                renderSelectedDay();
+            }
+        );
+
+
+        grid.appendChild(cell);
+    }
 }
 
-.calendar-arrow {
-    width: 38px;
-    height: 38px;
 
-    border-radius: 12px;
+safeAddEventListener(
+    $("previousMonth"),
+    "click",
+    () => {
 
-    background: var(--primary-light);
+        currentCalendarDate.setMonth(
+            currentCalendarDate.getMonth() - 1
+        );
 
-    color: var(--primary);
+        renderCalendar();
+    }
+);
 
-    font-size: 24px;
-}
 
-.weekdays,
-.calendar-grid {
-    display: grid;
+safeAddEventListener(
+    $("nextMonth"),
+    "click",
+    () => {
 
-    grid-template-columns:
-        repeat(7, 1fr);
+        currentCalendarDate.setMonth(
+            currentCalendarDate.getMonth() + 1
+        );
 
-    gap: 8px;
-}
+        renderCalendar();
+    }
+);
 
-.weekdays {
-    margin-bottom: 8px;
-}
 
-.weekdays span {
-    text-align: center;
+/* =====================================================
+   DIA SELECIONADO
+===================================================== */
 
-    color: var(--muted);
+function renderSelectedDay() {
 
-    font-size: 12px;
+    const container =
+        $("selectedDayContent");
 
-    font-weight: 600;
-}
+    const title =
+        $("selectedDateTitle");
 
-.calendar-day {
-    min-height: 100px;
 
-    padding: 10px;
+    if (!container || !title) {
+        return;
+    }
 
-    border:
-        1px solid var(--border);
 
-    border-radius: 13px;
+    const dateString =
+        dateToString(selectedDate);
 
-    cursor: pointer;
 
-    transition: 0.2s;
-}
+    title.textContent =
+        selectedDate.toLocaleDateString(
+            "pt-BR",
+            {
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+            }
+        );
 
-.calendar-day:hover {
-    border-color: var(--primary);
-}
 
-.calendar-day.today {
-    background: var(--primary-light);
+    container.innerHTML = "";
 
-    border-color: var(--primary);
-}
 
-.calendar-day.selected {
-    box-shadow:
-        inset 0 0 0 2px var(--primary);
-}
+    const dayTasks =
+        tasks.filter(
+            task =>
+                task.date === dateString &&
+                !task.completed
+        );
 
-.day-number {
-    font-size: 13px;
 
-    font-weight: 700;
-}
+    const dayEvents =
+        events.filter(
+            event =>
+                event.date === dateString
+        );
 
-.calendar-items {
-    margin-top: 8px;
 
-    display: flex;
-    flex-direction: column;
+    if (
+        dayTasks.length === 0 &&
+        dayEvents.length === 0
+    ) {
 
-    gap: 4px;
-}
+        container.innerHTML = `
+            <div class="empty-state">
 
-.calendar-item {
-    font-size: 10px;
+                <div class="empty-icon">
+                    ○
+                </div>
 
-    padding: 4px 6px;
+                <h3>
+                    Nada agendado
+                </h3>
 
-    border-radius: 6px;
+                <p>
+                    Não há tarefas ou eventos neste dia.
+                </p>
 
-    overflow: hidden;
+            </div>
+        `;
 
-    white-space: nowrap;
+        return;
+    }
 
-    text-overflow: ellipsis;
-}
 
-.calendar-task {
-    background: var(--primary-light);
+    dayEvents.forEach(event => {
 
-    color: var(--primary);
-}
+        const element =
+            document.createElement("div");
 
-.calendar-event {
-    background: #f1e5df;
 
-    color: #9b7463;
-}
+        element.className =
+            "day-event";
 
-.day-events {
-    display: flex;
 
-    flex-direction: column;
+        element.innerHTML = `
+            <div class="day-event-content">
 
-    gap: 10px;
-}
+                <strong>
+                    📌 ${escapeHTML(event.title)}
+                </strong>
 
-.day-event {
-    padding: 15px;
+                <p>
+                    ${escapeHTML(
+                        event.description ||
+                        "Sem descrição."
+                    )}
+                </p>
 
-    border:
-        1px solid var(--border);
+            </div>
 
-    border-radius: 14px;
+            <div class="day-event-actions">
 
-    display: flex;
+                <button
+                    class="edit-event"
+                    type="button"
+                >
+                    ✎
+                </button>
 
-    align-items: flex-start;
-    justify-content: space-between;
+                <button
+                    class="delete-event"
+                    type="button"
+                >
+                    ×
+                </button>
 
-    gap: 12px;
-}
+            </div>
+        `;
 
-.day-event strong {
-    display: block;
 
-    margin-bottom: 5px;
-}
+        safeAddEventListener(
+            element.querySelector(
+                ".edit-event"
+            ),
+            "click",
+            () => editEvent(event.id)
+        );
 
-.day-event p {
-    color: var(--muted);
 
-    font-size: 13px;
-}
+        safeAddEventListener(
+            element.querySelector(
+                ".delete-event"
+            ),
+            "click",
+            () => deleteEvent(event.id)
+        );
 
-.day-event-actions {
-    display: flex;
 
-    gap: 8px;
+        container.appendChild(element);
+    });
 
-    flex-shrink: 0;
-}
 
-.edit-event,
-.delete-event {
-    background: transparent;
+    dayTasks.forEach(task => {
 
-    color: var(--muted);
+        const element =
+            document.createElement("div");
 
-    font-size: 18px;
-}
 
-.edit-event:hover {
-    color: var(--primary);
-}
+        element.className =
+            "day-event";
 
-.delete-event:hover {
-    color: var(--high);
+
+        element.innerHTML = `
+            <div class="day-event-content">
+
+                <strong>
+                    ✓ ${escapeHTML(task.title)}
+                </strong>
+
+                <p>
+                    ${escapeHTML(task.subject)}
+                    • Prioridade:
+                    ${getPriorityLabel(task.priority)}
+                </p>
+
+            </div>
+
+            <div class="day-event-actions">
+
+                <button
+                    class="edit-task-day"
+                    type="button"
+                >
+                    ✎
+                </button>
+
+                <button
+                    class="complete-task-day"
+                    type="button"
+                >
+                    ✓
+                </button>
+
+            </div>
+        `;
+
+
+        safeAddEventListener(
+            element.querySelector(
+                ".edit-task-day"
+            ),
+            "click",
+            () => editTask(task.id)
+        );
+
+
+        safeAddEventListener(
+            element.querySelector(
+                ".complete-task-day"
+            ),
+            "click",
+            () => toggleTask(task.id)
+        );
+
+
+        container.appendChild(element);
+    });
 }
 
 
 /* =====================================================
-   MÚSICA
+   EVENTOS
 ===================================================== */
 
-.music-grid {
-    display: grid;
+safeAddEventListener(
+    $("openEventModal"),
+    "click",
+    () => {
 
-    grid-template-columns:
-        repeat(3, 1fr);
+        editingEventId = null;
 
-    gap: 18px;
+        $("eventForm")?.reset();
 
-    margin-bottom: 22px;
+        $("eventModalTitle").textContent =
+            "Novo evento";
+
+        $("eventSubmitButton").textContent =
+            "Criar evento";
+
+        $("eventModal")?.classList.add(
+            "active"
+        );
+    }
+);
+
+
+safeAddEventListener(
+    $("closeEventModal"),
+    "click",
+    () => {
+
+        $("eventModal")?.classList.remove(
+            "active"
+        );
+
+        editingEventId = null;
+
+        $("eventForm")?.reset();
+
+        $("eventModalTitle").textContent =
+            "Novo evento";
+
+        $("eventSubmitButton").textContent =
+            "Criar evento";
+    }
+);
+
+
+function editEvent(id) {
+
+    const event =
+        events.find(
+            item => item.id === id
+        );
+
+
+    if (!event) {
+        return;
+    }
+
+
+    editingEventId = id;
+
+
+    $("eventTitle").value =
+        event.title;
+
+    $("eventDescription").value =
+        event.description || "";
+
+    $("eventDate").value =
+        event.date;
+
+
+    $("eventModalTitle").textContent =
+        "Editar evento";
+
+    $("eventSubmitButton").textContent =
+        "Salvar alterações";
+
+
+    $("eventModal")?.classList.add(
+        "active"
+    );
 }
 
-.music-card {
-    background: var(--card);
 
-    border:
-        1px solid var(--border);
+function deleteEvent(id) {
 
-    border-radius: 20px;
+    if (
+        !confirm(
+            "Deseja realmente excluir este evento?"
+        )
+    ) {
+        return;
+    }
 
-    padding: 25px;
 
-    box-shadow: var(--shadow);
+    events =
+        events.filter(
+            event => event.id !== id
+        );
+
+
+    saveEvents();
+
+    renderCalendar();
+    renderSelectedDay();
+    updateNextEvent();
 }
 
-.music-card.featured {
-    grid-column:
-        span 3;
 
-    display: flex;
+safeAddEventListener(
+    $("eventForm"),
+    "submit",
+    event => {
 
-    align-items: center;
+        event.preventDefault();
 
-    gap: 25px;
 
-    background:
-        linear-gradient(
-            135deg,
-            var(--primary-light),
-            var(--card)
+        const title =
+            $("eventTitle")?.value.trim();
+
+        const description =
+            $("eventDescription")?.value.trim();
+
+        const date =
+            $("eventDate")?.value;
+
+
+        if (!title || !date) {
+            return;
+        }
+
+
+        if (editingEventId !== null) {
+
+            events =
+                events.map(event => {
+
+                    if (
+                        event.id ===
+                        editingEventId
+                    ) {
+
+                        return {
+                            ...event,
+                            title,
+                            description,
+                            date
+                        };
+                    }
+
+                    return event;
+                });
+
+        } else {
+
+            events.push({
+                id: Date.now(),
+                title,
+                description,
+                date
+            });
+        }
+
+
+        saveEvents();
+
+
+        $("eventForm")?.reset();
+
+        $("eventModal")?.classList.remove(
+            "active"
+        );
+
+
+        editingEventId = null;
+
+
+        $("eventModalTitle").textContent =
+            "Novo evento";
+
+        $("eventSubmitButton").textContent =
+            "Criar evento";
+
+
+        renderCalendar();
+        renderSelectedDay();
+        updateNextEvent();
+    }
+);
+
+
+/* =====================================================
+   PRÓXIMO EVENTO
+===================================================== */
+
+function updateNextEvent() {
+
+    const container =
+        $("nextEvent");
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const today =
+        dateToString(new Date());
+
+
+    const upcomingEvents =
+        events
+            .filter(
+                event =>
+                    event.date >= today
+            )
+            .sort(
+                (a, b) =>
+                    a.date.localeCompare(
+                        b.date
+                    )
+            );
+
+
+    const upcomingTasks =
+        tasks
+            .filter(
+                task =>
+                    !task.completed &&
+                    task.date &&
+                    task.date >= today
+            )
+            .sort(
+                (a, b) =>
+                    a.date.localeCompare(
+                        b.date
+                    )
+            );
+
+
+    if (
+        !upcomingEvents.length &&
+        !upcomingTasks.length
+    ) {
+
+        container.innerHTML = `
+            <div class="empty-icon">
+                ○
+            </div>
+
+            <h3>
+                Nada agendado
+            </h3>
+
+            <p>
+                Sua agenda está tranquila.
+            </p>
+        `;
+
+        return;
+    }
+
+
+    const event =
+        upcomingEvents[0];
+
+    const task =
+        upcomingTasks[0];
+
+
+    let item;
+
+
+    if (
+        !task ||
+        (
+            event &&
+            event.date < task.date
+        )
+    ) {
+
+        item = {
+            title: event.title,
+            date: event.date,
+            type: "Evento"
+        };
+
+    } else {
+
+        item = {
+            title: task.title,
+            date: task.date,
+            type: "Tarefa"
+        };
+    }
+
+
+    container.innerHTML = `
+        <div class="empty-icon">
+            ${item.type === "Evento" ? "📌" : "✓"}
+        </div>
+
+        <h3>
+            ${escapeHTML(item.title)}
+        </h3>
+
+        <p>
+            ${item.type}
+            • ${formatDate(item.date)}
+        </p>
+    `;
+}
+
+
+/* =====================================================
+   CRONÔMETRO DE FOCO
+===================================================== */
+
+const focusSetup =
+    $("focusSetup");
+
+const focusTimer =
+    $("focusTimer");
+
+const focusComplete =
+    $("focusComplete");
+
+const focusTime =
+    $("focusTime");
+
+const focusStatus =
+    $("focusStatus");
+
+const startFocus =
+    $("startFocus");
+
+const pauseFocus =
+    $("pauseFocus");
+
+const stopFocus =
+    $("stopFocus");
+
+const newFocus =
+    $("newFocus");
+
+const focusCustomMinutes =
+    $("focusCustomMinutes");
+
+const todayStudyTime =
+    $("todayStudyTime");
+
+const todayStudySessions =
+    $("todayStudySessions");
+
+const focusCompleteMessage =
+    $("focusCompleteMessage");
+
+const focusPresets =
+    document.querySelectorAll(
+        ".focus-preset"
+    );
+
+
+let focusSelectedMinutes = 25;
+
+let focusTotalSeconds =
+    25 * 60;
+
+let focusRemainingSeconds =
+    25 * 60;
+
+let focusInterval = null;
+
+let focusRunning = false;
+
+let focusPaused = false;
+
+
+/* =====================================================
+   ARMAZENAMENTO DO FOCO
+===================================================== */
+
+function getStudyStorageKey() {
+
+    return currentUser
+        ? `studyflow_focus_${currentUser.uid}`
+        : "studyflow_focus_guest";
+}
+
+
+function getTodayKey() {
+
+    return dateToString(
+        new Date()
+    );
+}
+
+
+function getTodayStudyData() {
+
+    const key =
+        getStudyStorageKey();
+
+
+    let data = {};
+
+
+    try {
+
+        data =
+            JSON.parse(
+                localStorage.getItem(key)
+            ) || {};
+
+    } catch {
+
+        data = {};
+    }
+
+
+    const today =
+        getTodayKey();
+
+
+    if (!data[today]) {
+
+        data[today] = {
+            seconds: 0,
+            sessions: 0
+        };
+    }
+
+
+    return {
+        all: data,
+        today: data[today]
+    };
+}
+
+
+function saveStudyData(data) {
+
+    localStorage.setItem(
+        getStudyStorageKey(),
+        JSON.stringify(data)
+    );
+}
+
+
+/* =====================================================
+   TOTAL ESTUDADO
+===================================================== */
+
+function updateStudyTotals() {
+
+    const data =
+        getTodayStudyData();
+
+
+    const totalSeconds =
+        data.today.seconds;
+
+
+    const hours =
+        Math.floor(
+            totalSeconds / 3600
+        );
+
+
+    const minutes =
+        Math.floor(
+            (totalSeconds % 3600) / 60
+        );
+
+
+    const formatted =
+        `${hours}h ${String(minutes).padStart(2, "0")}min`;
+
+
+    if (todayStudyTime) {
+
+        todayStudyTime.textContent =
+            formatted;
+    }
+
+
+    if (todayStudySessions) {
+
+        todayStudySessions.textContent =
+            data.today.sessions;
+    }
+
+
+    const homeStudyTime =
+        $("homeStudyTime");
+
+
+    if (homeStudyTime) {
+
+        homeStudyTime.textContent =
+            formatted;
+    }
+}
+
+
+/* =====================================================
+   DISPLAY DO CRONÔMETRO
+===================================================== */
+
+function formatFocusTime(seconds) {
+
+    seconds =
+        Math.max(
+            0,
+            Math.floor(seconds)
+        );
+
+
+    const minutes =
+        Math.floor(
+            seconds / 60
+        );
+
+
+    const remaining =
+        seconds % 60;
+
+
+    return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(remaining).padStart(2, "0")
+    );
+}
+
+
+function updateFocusDisplay() {
+
+    if (focusTime) {
+
+        focusTime.textContent =
+            formatFocusTime(
+                focusRemainingSeconds
+            );
+    }
+
+
+    const progress =
+        focusTotalSeconds > 0
+            ? 1 -
+              (
+                  focusRemainingSeconds /
+                  focusTotalSeconds
+              )
+            : 0;
+
+
+    const degrees =
+        progress * 360;
+
+
+    const circle =
+        document.querySelector(
+            ".focus-timer-circle"
+        );
+
+
+    if (circle) {
+
+        circle.style.background =
+            `conic-gradient(
+                var(--primary) ${degrees}deg,
+                var(--primary-light) ${degrees}deg
+            )`;
+    }
+}
+
+
+/* =====================================================
+   PRESETS
+===================================================== */
+
+focusPresets.forEach(
+    button => {
+
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
+
+                focusPresets.forEach(
+                    item =>
+                        item.classList.remove(
+                            "active"
+                        )
+                );
+
+
+                button.classList.add(
+                    "active"
+                );
+
+
+                focusSelectedMinutes =
+                    Number(
+                        button.dataset.minutes
+                    );
+
+
+                if (focusCustomMinutes) {
+
+                    focusCustomMinutes.value =
+                        "";
+                }
+
+
+                focusTotalSeconds =
+                    focusSelectedMinutes *
+                    60;
+
+
+                focusRemainingSeconds =
+                    focusTotalSeconds;
+
+
+                updateFocusDisplay();
+            }
+        );
+    }
+);
+
+
+/* =====================================================
+   TEMPO PERSONALIZADO
+===================================================== */
+
+safeAddEventListener(
+    focusCustomMinutes,
+    "input",
+    () => {
+
+        const custom =
+            Number(
+                focusCustomMinutes.value
+            );
+
+
+        if (
+            custom > 0 &&
+            custom <= 600
+        ) {
+
+            focusPresets.forEach(
+                item =>
+                    item.classList.remove(
+                        "active"
+                    )
+            );
+
+
+            focusSelectedMinutes =
+                custom;
+
+            focusTotalSeconds =
+                custom * 60;
+
+            focusRemainingSeconds =
+                focusTotalSeconds;
+
+
+            updateFocusDisplay();
+        }
+    }
+);
+
+
+/* =====================================================
+   INICIAR SESSÃO
+===================================================== */
+
+function startFocusSession() {
+
+    if (
+        focusSelectedMinutes <= 0 ||
+        focusRunning
+    ) {
+        return;
+    }
+
+
+    clearInterval(
+        focusInterval
+    );
+
+
+    focusTotalSeconds =
+        focusSelectedMinutes * 60;
+
+
+    focusRemainingSeconds =
+        focusTotalSeconds;
+
+
+    focusRunning = true;
+
+    focusPaused = false;
+
+
+    if (focusSetup) {
+        focusSetup.style.display =
+            "none";
+    }
+
+
+    if (focusComplete) {
+        focusComplete.style.display =
+            "none";
+    }
+
+
+    if (focusTimer) {
+        focusTimer.style.display =
+            "block";
+    }
+
+
+    if (pauseFocus) {
+        pauseFocus.textContent =
+            "Pausar";
+    }
+
+
+    if (focusStatus) {
+        focusStatus.textContent =
+            "Em foco";
+    }
+
+
+    updateFocusDisplay();
+
+
+    focusInterval =
+        setInterval(
+            updateFocusSession,
+            250
         );
 }
 
-.music-cover {
-    width: 120px;
-    height: 120px;
 
-    flex-shrink: 0;
+/* =====================================================
+   ATUALIZAR SESSÃO
+===================================================== */
 
-    border-radius: 22px;
+function updateFocusSession() {
 
-    display: flex;
+    if (
+        !focusRunning ||
+        focusPaused
+    ) {
+        return;
+    }
 
-    align-items: center;
-    justify-content: center;
 
-    font-size: 45px;
+    focusRemainingSeconds -=
+        0.25;
 
-    color: white;
 
-    background:
-        linear-gradient(
-            135deg,
-            var(--primary),
-            #d6b8c6
+    if (
+        focusRemainingSeconds <= 0
+    ) {
+
+        focusRemainingSeconds =
+            0;
+
+
+        updateFocusDisplay();
+
+        finishFocusSession();
+
+        return;
+    }
+
+
+    updateFocusDisplay();
+}
+
+
+/* =====================================================
+   PAUSAR / CONTINUAR
+===================================================== */
+
+safeAddEventListener(
+    pauseFocus,
+    "click",
+    () => {
+
+        if (!focusRunning) {
+            return;
+        }
+
+
+        focusPaused =
+            !focusPaused;
+
+
+        if (focusPaused) {
+
+            if (focusStatus) {
+                focusStatus.textContent =
+                    "Pausado";
+            }
+
+            pauseFocus.textContent =
+                "Continuar";
+
+        } else {
+
+            if (focusStatus) {
+                focusStatus.textContent =
+                    "Em foco";
+            }
+
+            pauseFocus.textContent =
+                "Pausar";
+        }
+    }
+);
+
+
+/* =====================================================
+   REGISTRAR TEMPO
+===================================================== */
+
+function registerStudyTime(
+    seconds,
+    completed
+) {
+
+    const {
+        all,
+        today
+    } =
+        getTodayStudyData();
+
+
+    today.seconds +=
+        Math.max(
+            0,
+            Math.floor(seconds)
         );
-}
 
-.music-content h2 {
-    margin: 5px 0 8px;
-}
 
-.music-content p,
-.music-card p {
-    color: var(--muted);
+    if (completed) {
 
-    line-height: 1.6;
-}
+        today.sessions += 1;
+    }
 
-.music-icon {
-    font-size: 30px;
 
-    color: var(--primary);
+    all[getTodayKey()] =
+        today;
 
-    margin-bottom: 15px;
-}
 
-.music-card h3 {
-    margin-bottom: 8px;
-}
+    saveStudyData(all);
 
-.music-button {
-    display: inline-block;
-
-    margin-top: 18px;
-
-    padding:
-        10px 15px;
-
-    border-radius: 12px;
-
-    background: var(--primary);
-
-    color: white;
-
-    text-decoration: none;
-
-    font-size: 13px;
-
-    font-weight: 600;
-}
-
-.music-link {
-    display: inline-block;
-
-    margin-top: 15px;
-
-    color: var(--primary);
-
-    text-decoration: none;
-
-    font-size: 13px;
-
-    font-weight: 600;
-}
-
-.music-description {
-    color: var(--muted);
-
-    margin-bottom: 15px;
-}
-
-.playlist-input {
-    display: flex;
-
-    gap: 10px;
-}
-
-.playlist-input input {
-    flex: 1;
-
-    padding: 12px 14px;
-
-    border:
-        1px solid var(--border);
-
-    border-radius: 12px;
-
-    background: var(--card);
-
-    color: var(--text);
-
-    outline: none;
-}
-
-.playlist-container {
-    margin-top: 20px;
-}
-
-.playlist-container iframe {
-    width: 100%;
-
-    min-height: 352px;
-
-    border: none;
-
-    border-radius: 14px;
+    updateStudyTotals();
 }
 
 
 /* =====================================================
-   PROGRESSO
+   ENCERRAR SESSÃO
 ===================================================== */
 
-.large-progress {
-    width: 100%;
+safeAddEventListener(
+    stopFocus,
+    "click",
+    () => {
 
-    height: 14px;
+        if (!focusRunning) {
+            return;
+        }
 
-    background: var(--primary-light);
 
-    border-radius: 20px;
+        const elapsed =
+            focusTotalSeconds -
+            focusRemainingSeconds;
 
-    overflow: hidden;
 
-    margin:
-        25px 0 12px;
-}
+        if (elapsed > 0) {
 
-#largeProgressBar {
-    width: 0%;
-    height: 100%;
+            registerStudyTime(
+                elapsed,
+                false
+            );
+        }
 
-    background: var(--primary);
 
-    border-radius: inherit;
+        clearInterval(
+            focusInterval
+        );
 
-    transition: width 0.3s;
-}
 
-#largeProgressText {
-    color: var(--muted);
+        focusRunning = false;
+
+        focusPaused = false;
+
+
+        if (focusSetup) {
+            focusSetup.style.display =
+                "block";
+        }
+
+
+        if (focusTimer) {
+            focusTimer.style.display =
+                "none";
+        }
+
+
+        updateStudyTotals();
+    }
+);
+
+
+/* =====================================================
+   CONCLUIR SESSÃO
+===================================================== */
+
+function finishFocusSession() {
+
+    clearInterval(
+        focusInterval
+    );
+
+
+    focusRunning = false;
+
+    focusPaused = false;
+
+
+    registerStudyTime(
+        focusTotalSeconds,
+        true
+    );
+
+
+    if (focusTimer) {
+        focusTimer.style.display =
+            "none";
+    }
+
+
+    if (focusSetup) {
+        focusSetup.style.display =
+            "none";
+    }
+
+
+    if (focusComplete) {
+        focusComplete.style.display =
+            "block";
+    }
+
+
+    if (focusCompleteMessage) {
+
+        focusCompleteMessage.textContent =
+            `Você terminou ${focusSelectedMinutes} minutos de foco. Seu esforço de hoje já conta para o seu progresso. Parabéns pela dedicação!`;
+    }
 }
 
 
 /* =====================================================
-   PERFIL
+   NOVA SESSÃO
 ===================================================== */
 
-.profile-card {
-    display: flex;
+safeAddEventListener(
+    newFocus,
+    "click",
+    () => {
 
-    align-items: center;
+        if (focusComplete) {
+            focusComplete.style.display =
+                "none";
+        }
 
-    gap: 25px;
-}
 
-.profile-photo-container {
-    position: relative;
+        if (focusSetup) {
+            focusSetup.style.display =
+                "block";
+        }
 
-    width: 110px;
-    height: 110px;
-}
 
-.profile-photo {
-    width: 110px;
-    height: 110px;
+        focusRemainingSeconds =
+            focusTotalSeconds;
 
-    border-radius: 50%;
 
-    object-fit: cover;
-}
+        updateFocusDisplay();
+    }
+);
 
-.profile-initial {
-    display: flex;
 
-    align-items: center;
-    justify-content: center;
-
-    background: var(--primary-light);
-
-    color: var(--primary);
-
-    font-size: 38px;
-
-    font-weight: 700;
-}
-
-.change-photo {
-    position: absolute;
-
-    right: 0;
-    bottom: 0;
-
-    width: 34px;
-    height: 34px;
-
-    border-radius: 50%;
-
-    background: var(--primary);
-
-    color: white;
-
-    display: flex;
-
-    justify-content: center;
-    align-items: center;
-
-    cursor: pointer;
-}
-
-.profile-info p {
-    color: var(--muted);
-
-    margin:
-        5px 0 15px;
-}
-
-.profile-info .secondary-button {
-    margin-right: 8px;
-    margin-bottom: 8px;
-}
+safeAddEventListener(
+    startFocus,
+    "click",
+    startFocusSession
+);
 
 
 /* =====================================================
    TEMAS
 ===================================================== */
 
-.theme-grid {
-    display: grid;
+document
+    .querySelectorAll(
+        ".theme-option"
+    )
+    .forEach(button => {
 
-    grid-template-columns:
-        repeat(3, 1fr);
+        safeAddEventListener(
+            button,
+            "click",
+            () => {
 
-    gap: 12px;
+                const theme =
+                    button.dataset.theme;
+
+
+                document.body.dataset.theme =
+                    theme;
+
+
+                localStorage.setItem(
+                    "studyflow_theme",
+                    theme
+                );
+
+
+                updateActiveTheme();
+            }
+        );
+    });
+
+
+function loadTheme() {
+
+    const saved =
+        localStorage.getItem(
+            "studyflow_theme"
+        );
+
+
+    if (saved) {
+
+        document.body.dataset.theme =
+            saved;
+    }
+
+
+    updateActiveTheme();
 }
 
-.theme-option {
-    display: flex;
 
-    flex-direction: column;
+function updateActiveTheme() {
 
-    text-align: left;
+    const current =
+        document.body.dataset.theme ||
+        "light";
 
-    gap: 4px;
 
-    padding: 14px;
+    document
+        .querySelectorAll(
+            ".theme-option"
+        )
+        .forEach(button => {
 
-    border:
-        1px solid var(--border);
-
-    border-radius: 15px;
-
-    background: var(--card);
-
-    color: var(--text);
-
-    transition: 0.2s;
-}
-
-.theme-option:hover {
-    border-color: var(--primary);
-
-    transform: translateY(-2px);
-}
-
-.theme-option.active {
-    border:
-        2px solid var(--primary);
-}
-
-.theme-option small {
-    color: var(--muted);
-}
-
-.theme-preview {
-    width: 100%;
-    height: 35px;
-
-    border-radius: 9px;
-
-    margin-bottom: 5px;
-}
-
-.light-preview {
-    background: #eeeafb;
-}
-
-.dark-preview {
-    background: #34313d;
-}
-
-.blue-preview {
-    background: #dceaf0;
-}
-
-.rose-preview {
-    background: #f0dfe5;
-}
-
-.sage-preview {
-    background: #dfece3;
-}
-
-.cream-preview {
-    background: #eee6d4;
+            button.classList.toggle(
+                "active",
+                button.dataset.theme ===
+                current
+            );
+        });
 }
 
 
 /* =====================================================
-   SETTINGS
+   FOTO DE PERFIL
 ===================================================== */
 
-.settings-list {
-    display: flex;
+function getUserPhotoKey() {
 
-    flex-direction: column;
+    return currentUser
+        ? `studyflow_profile_photo_${currentUser.uid}`
+        : null;
 }
 
-.setting {
-    display: flex;
 
-    justify-content: space-between;
-    align-items: center;
+function loadProfilePhoto() {
 
-    padding: 18px 0;
+    const key =
+        getUserPhotoKey();
 
-    border-bottom:
-        1px solid var(--border);
+
+    const photo =
+        key
+            ? localStorage.getItem(key)
+            : null;
+
+
+    const profileImage =
+        $("profileImage");
+
+    const profileInitial =
+        $("profileInitial");
+
+    const headerImage =
+        $("headerProfileImage");
+
+    const headerInitial =
+        $("headerProfileInitial");
+
+
+    if (
+        !profileImage ||
+        !profileInitial ||
+        !headerImage ||
+        !headerInitial
+    ) {
+        return;
+    }
+
+
+    if (photo) {
+
+        profileImage.src =
+            photo;
+
+        profileImage.style.display =
+            "block";
+
+        profileInitial.style.display =
+            "none";
+
+
+        headerImage.src =
+            photo;
+
+        headerImage.style.display =
+            "block";
+
+        headerInitial.style.display =
+            "none";
+
+    } else {
+
+        profileImage.removeAttribute(
+            "src"
+        );
+
+        profileImage.style.display =
+            "none";
+
+        profileInitial.style.display =
+            "flex";
+
+
+        headerImage.removeAttribute(
+            "src"
+        );
+
+        headerImage.style.display =
+            "none";
+
+        headerInitial.style.display =
+            "flex";
+    }
 }
 
-.setting:last-child {
-    border-bottom: none;
-}
 
-.setting p {
-    color: var(--muted);
+safeAddEventListener(
+    $("profilePhotoInput"),
+    "change",
+    event => {
 
-    font-size: 13px;
+        if (!currentUser) {
+            return;
+        }
 
-    margin-top: 4px;
-}
+
+        const file =
+            event.target.files?.[0];
+
+
+        if (!file) {
+            return;
+        }
+
+
+        if (
+            !file.type.startsWith(
+                "image/"
+            )
+        ) {
+
+            alert(
+                "Escolha uma imagem válida."
+            );
+
+            return;
+        }
+
+
+        const reader =
+            new FileReader();
+
+
+        reader.onload =
+            () => {
+
+                const key =
+                    getUserPhotoKey();
+
+
+                if (!key) {
+                    return;
+                }
+
+
+                localStorage.setItem(
+                    key,
+                    reader.result
+                );
+
+
+                loadProfilePhoto();
+            };
+
+
+        reader.readAsDataURL(file);
+    }
+);
+
+
+safeAddEventListener(
+    $("removeProfilePhoto"),
+    "click",
+    () => {
+
+        const key =
+            getUserPhotoKey();
+
+
+        if (key) {
+
+            localStorage.removeItem(
+                key
+            );
+        }
+
+
+        const input =
+            $("profilePhotoInput");
+
+
+        if (input) {
+            input.value = "";
+        }
+
+
+        loadProfilePhoto();
+    }
+);
 
 
 /* =====================================================
-   MODAL
+   ALTERAR NOME
 ===================================================== */
 
-.modal {
-    position: fixed;
+safeAddEventListener(
+    $("editProfileName"),
+    "click",
+    async () => {
 
-    inset: 0;
+        if (!currentUser) {
+            return;
+        }
 
-    background:
-        rgba(35, 30, 45, 0.35);
 
-    display: none;
+        const newName =
+            prompt(
+                "Digite seu novo nome:",
+                currentUser.displayName || ""
+            );
 
-    align-items: center;
-    justify-content: center;
 
-    padding: 20px;
+        if (
+            !newName ||
+            !newName.trim()
+        ) {
+            return;
+        }
 
-    z-index: 100;
-}
 
-.modal.active {
-    display: flex;
-}
+        try {
 
-.modal-content {
-    width: 100%;
-    max-width: 500px;
+            await updateProfile(
+                currentUser,
+                {
+                    displayName:
+                        newName.trim()
+                }
+            );
 
-    background: var(--card);
 
-    border-radius: 25px;
+            await currentUser.reload();
 
-    padding: 30px;
 
-    position: relative;
+            loadUserProfile(
+                currentUser
+            );
 
-    box-shadow:
-        0 25px 70px
-        rgba(30, 20, 50, 0.2);
-}
+        } catch (error) {
 
-.modal-content h2 {
-    margin:
-        5px 0 25px;
-}
+            console.error(
+                "Erro ao alterar nome:",
+                error
+            );
 
-.close-modal {
-    position: absolute;
 
-    right: 20px;
-    top: 18px;
-
-    width: 35px;
-    height: 35px;
-
-    border-radius: 50%;
-
-    background: var(--background);
-
-    color: var(--text);
-
-    font-size: 22px;
-}
-
-#taskForm,
-#eventForm {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 17px;
-}
-
-#taskForm label,
-#eventForm label {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 7px;
-
-    font-size: 13px;
-
-    font-weight: 600;
-}
-
-#taskForm input,
-#taskForm select,
-#eventForm input,
-#eventForm textarea {
-    padding:
-        12px 13px;
-
-    border:
-        1px solid var(--border);
-
-    border-radius: 12px;
-
-    outline: none;
-
-    background: var(--card);
-
-    color: var(--text);
-
-    resize: vertical;
-}
-
-#taskForm input:focus,
-#taskForm select:focus,
-#eventForm input:focus,
-#eventForm textarea:focus {
-    border-color: var(--primary);
-}
+            alert(
+                "Não foi possível alterar o nome."
+            );
+        }
+    }
+);
 
 
 /* =====================================================
-   TELA DE ABERTURA
+   LOGOUT
 ===================================================== */
 
-.splash-screen {
-    position: fixed;
+safeAddEventListener(
+    $("logoutButton"),
+    "click",
+    async () => {
 
-    inset: 0;
+        try {
 
-    z-index: 9999;
+            await signOut(auth);
 
-    display: flex;
+        } catch (error) {
 
-    align-items: center;
-    justify-content: center;
+            console.error(
+                "Erro ao sair:",
+                error
+            );
 
-    background: #f7f5f8;
 
-    opacity: 1;
-
-    visibility: visible;
-
-    transition:
-        opacity 0.6s ease,
-        visibility 0.6s ease;
-}
-
-.splash-screen.hide {
-    opacity: 0;
-
-    visibility: hidden;
-
-    pointer-events: none;
-}
-
-.splash-content {
-    display: flex;
-
-    flex-direction: column;
-
-    align-items: center;
-    justify-content: center;
-
-    text-align: center;
-
-    animation:
-        splashAppear 0.9s ease forwards;
-}
-
-.splash-icon {
-    width: 120px;
-    height: 120px;
-
-    object-fit: contain;
-
-    margin-bottom: 22px;
-
-    animation:
-        splashIcon 1.2s ease forwards;
-}
-
-.splash-content h1 {
-    margin: 0;
-
-    font-size: 32px;
-
-    font-weight: 600;
-
-    letter-spacing: -0.5px;
-
-    color: #4d4852;
-}
-
-.splash-content p {
-    margin: 9px 0 0;
-
-    font-size: 14px;
-
-    letter-spacing: 0.3px;
-
-    color: #8b8490;
-}
-
-@keyframes splashAppear {
-
-    from {
-        opacity: 0;
-
-        transform:
-            translateY(12px);
+            alert(
+                "Não foi possível sair da conta."
+            );
+        }
     }
-
-    to {
-        opacity: 1;
-
-        transform:
-            translateY(0);
-    }
-
-}
-
-@keyframes splashIcon {
-
-    from {
-        opacity: 0;
-
-        transform:
-            scale(0.88);
-    }
-
-    to {
-        opacity: 1;
-
-        transform:
-            scale(1);
-    }
-
-}
+);
 
 
 /* =====================================================
-   NAVEGAÇÃO MOBILE
+   SPOTIFY
 ===================================================== */
 
-.mobile-nav {
-    display: none;
+function getPlaylistKey() {
+
+    return currentUser
+        ? `studyflow_playlist_${currentUser.uid}`
+        : null;
 }
+
+
+function extractSpotifyPlaylistId(url) {
+
+    try {
+
+        const parsed =
+            new URL(url);
+
+
+        if (
+            parsed.hostname !==
+            "open.spotify.com"
+        ) {
+            return null;
+        }
+
+
+        const parts =
+            parsed.pathname.split("/");
+
+
+        const index =
+            parts.indexOf(
+                "playlist"
+            );
+
+
+        if (
+            index === -1 ||
+            !parts[index + 1]
+        ) {
+            return null;
+        }
+
+
+        const id =
+            parts[index + 1];
+
+
+        return /^[A-Za-z0-9]{22}$/.test(id)
+            ? id
+            : null;
+
+    } catch {
+
+        return null;
+    }
+}
+
+
+function loadPlaylist() {
+
+    const container =
+        $("playlistContainer");
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const key =
+        getPlaylistKey();
+
+
+    const playlistId =
+        key
+            ? localStorage.getItem(key)
+            : null;
+
+
+    if (!playlistId) {
+
+        container.innerHTML =
+            "";
+
+        return;
+    }
+
+
+    const iframe =
+        document.createElement(
+            "iframe"
+        );
+
+
+    iframe.src =
+        `https://open.spotify.com/embed/playlist/${playlistId}`;
+
+
+    iframe.allow =
+        "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+
+
+    iframe.loading =
+        "lazy";
+
+
+    container.replaceChildren(
+        iframe
+    );
+}
+
+
+safeAddEventListener(
+    $("addPlaylist"),
+    "click",
+    () => {
+
+        if (!currentUser) {
+            return;
+        }
+
+
+        const input =
+            $("playlistUrl");
+
+
+        const url =
+            input?.value.trim();
+
+
+        if (!url) {
+
+            alert(
+                "Cole o link de uma playlist."
+            );
+
+            return;
+        }
+
+
+        const playlistId =
+            extractSpotifyPlaylistId(
+                url
+            );
+
+
+        if (!playlistId) {
+
+            alert(
+                "Esse link não parece ser uma playlist válida do Spotify."
+            );
+
+            return;
+        }
+
+
+        const key =
+            getPlaylistKey();
+
+
+        if (!key) {
+            return;
+        }
+
+
+        localStorage.setItem(
+            key,
+            playlistId
+        );
+
+
+        input.value =
+            "";
+
+
+        loadPlaylist();
+    }
+);
 
 
 /* =====================================================
-   RESPONSIVE
+   MODAIS
 ===================================================== */
 
-@media (max-width: 1000px) {
+document
+    .querySelectorAll(".modal")
+    .forEach(modal => {
 
-    .sidebar {
-        display: none;
+        safeAddEventListener(
+            modal,
+            "click",
+            event => {
+
+                if (
+                    event.target ===
+                    modal
+                ) {
+
+                    modal.classList.remove(
+                        "active"
+                    );
+
+                    editingTaskId = null;
+                    editingEventId = null;
+                }
+            }
+        );
+    });
+
+
+/* =====================================================
+   ESTADO DE AUTENTICAÇÃO
+===================================================== */
+
+onAuthStateChanged(
+    auth,
+    user => {
+
+        currentUser =
+            user;
+
+
+        if (user) {
+
+            authScreen.style.display =
+                "none";
+
+
+            loadUserData(user);
+            loadUserProfile(user);
+            loadProfilePhoto();
+            loadPlaylist();
+
+
+            renderTasks();
+            renderCalendar();
+            renderSelectedDay();
+            updateNextEvent();
+
+
+            updateStudyTotals();
+
+        } else {
+
+            authScreen.style.display =
+                "flex";
+
+
+            tasks = [];
+            events = [];
+
+
+            renderTasks();
+            renderCalendar();
+            renderSelectedDay();
+            updateNextEvent();
+
+
+            updateStudyTotals();
+        }
     }
+);
 
-    .main {
-        width: 100%;
 
-        margin-left: 0;
+/* =====================================================
+   INICIALIZAÇÃO
+===================================================== */
 
-        padding:
-            25px 20px 100px;
+updateDate();
+
+loadTheme();
+
+updateFocusDisplay();
+
+updateStudyTotals();
+
+
+/* =====================================================
+   SPLASH SCREEN
+===================================================== */
+
+window.addEventListener(
+    "load",
+    () => {
+
+        const splash =
+            $("splashScreen");
+
+
+        if (!splash) {
+            return;
+        }
+
+
+        setTimeout(
+            () => {
+
+                splash.classList.add(
+                    "hide"
+                );
+
+            },
+            1800
+        );
     }
-
-    .mobile-nav {
-        display: flex;
-
-        position: fixed;
-
-        bottom: 0;
-        left: 0;
-        right: 0;
-
-        background: var(--card);
-
-        border-top:
-            1px solid var(--border);
-
-        padding: 8px;
-
-        z-index: 50;
-
-        flex-direction: row;
-    }
-
-    .mobile-nav .nav-item {
-        flex-direction: column;
-
-        justify-content: center;
-
-        gap: 3px;
-
-        padding:
-            8px 4px;
-
-        font-size: 10px;
-
-        text-align: center;
-    }
-
-    .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-
-    .subjects-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-
-    .music-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-
-    .music-card.featured {
-        grid-column:
-            span 2;
-    }
-
-}
-
-
-@media (max-width: 650px) {
-
-    .header h1 {
-        font-size: 25px;
-    }
-
-    .stats-grid,
-    .subjects-grid,
-    .theme-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .task-page-header,
-    .calendar-title {
-        flex-direction: column;
-
-        align-items: flex-start;
-
-        gap: 15px;
-    }
-
-    .calendar-grid,
-    .weekdays {
-        gap: 4px;
-    }
-
-    .calendar-day {
-        min-height: 65px;
-
-        padding: 6px;
-    }
-
-    .calendar-item {
-        display: none;
-    }
-
-    .music-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .music-card.featured {
-        grid-column:
-            span 1;
-
-        flex-direction: column;
-
-        align-items: flex-start;
-    }
-
-    .playlist-input {
-        flex-direction: column;
-    }
-
-    .profile-card {
-        flex-direction: column;
-
-        text-align: center;
-    }
-
-}
-
-
-@media (max-width: 600px) {
-
-    .auth-screen {
-        padding: 16px;
-    }
-
-    .auth-card {
-        padding: 28px 22px;
-
-        border-radius: 24px;
-    }
-
-    .auth-logo h1 {
-        font-size: 22px;
-    }
-
-    .auth-subtitle {
-        font-size: 14px;
-    }
-
-    .splash-icon {
-        width: 105px;
-        height: 105px;
-    }
-
-    .splash-content h1 {
-        font-size: 29px;
-    }
-
-    .splash-content p {
-        font-size: 13px;
-    }
-
-    .profile-info .secondary-button {
-        margin-right: 4px;
-        margin-left: 4px;
-    }
-
-}
+);
