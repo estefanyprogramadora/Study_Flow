@@ -1,0 +1,2046 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>StudyFlow</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="assets/studyflow-icon.png"
+    >
+
+    <link
+        rel="apple-touch-icon"
+        href="assets/studyflow-icon.png"
+    >
+
+    <!-- Configurações PWA -->
+
+    <link
+        rel="manifest"
+        href="manifest.json"
+    >
+
+    <meta
+        name="theme-color"
+        content="#d8cfe2"
+    >
+
+    <meta
+        name="mobile-web-app-capable"
+        content="yes"
+    >
+
+    <meta
+        name="apple-mobile-web-app-capable"
+        content="yes"
+    >
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     TELA DE LOGIN / CADASTRO
+===================================================== -->
+
+<div id="authScreen" class="auth-screen">
+
+    <div class="auth-card">
+
+        <div class="auth-logo">
+
+            <div class="logo-icon">
+                S
+            </div>
+
+            <h1>StudyFlow</h1>
+
+        </div>
+
+        <p class="auth-subtitle">
+            Entre na sua conta para continuar.
+        </p>
+
+
+        <!-- LOGIN SOCIAL -->
+
+        <div class="auth-social-buttons">
+
+            <button
+                id="googleLogin"
+                class="auth-social-button"
+                type="button"
+            >
+                <span class="auth-social-icon">G</span>
+                <span>Entre com o Google</span>
+            </button>
+        </div>
+
+
+        <!-- SEPARADOR -->
+
+        <div class="auth-divider">
+            <span>OU</span>
+        </div>
+
+
+        <!-- FORMULÁRIO -->
+
+        <form id="authForm">
+
+            <div
+                id="authNameContainer"
+                class="auth-field-container"
+                style="display: none;"
+            >
+
+                <label for="authName">
+                    Nome
+                </label>
+
+                <input
+                    id="authName"
+                    type="text"
+                    placeholder="Digite seu nome"
+                    autocomplete="name"
+                >
+
+            </div>
+
+
+            <div class="auth-field-container">
+
+                <label for="authEmail">
+                    Email
+                </label>
+
+                <input
+                    id="authEmail"
+                    type="email"
+                    placeholder="Digite seu e-mail"
+                    autocomplete="email"
+                >
+
+            </div>
+
+
+            <div class="auth-field-container">
+
+                <label for="authPassword">
+                    Password
+                </label>
+
+                <input
+                    id="authPassword"
+                    type="password"
+                    placeholder="Digite sua senha"
+                    autocomplete="current-password"
+                >
+
+            </div>
+
+
+            <button
+                id="emailSubmit"
+                class="auth-button"
+                type="submit"
+                disabled
+            >
+                Entrar
+            </button>
+
+        </form>
+
+
+        <!-- ALTERAR ENTRE LOGIN E CADASTRO -->
+
+        <div class="auth-mode-switch">
+
+            <span id="authModeText">
+                Não possui uma conta?
+            </span>
+
+            <button
+                id="toggleAuthMode"
+                type="button"
+            >
+                Criar conta
+            </button>
+
+        </div>
+
+        <p
+            id="authMessage"
+            class="auth-message"
+        ></p>
+
+    </div>
+
+</div>
+
+<!-- =====================================================
+     TELA DE ABERTURA
+===================================================== -->
+
+<div
+    id="splashScreen"
+    class="splash-screen"
+>
+
+    <div class="splash-content">
+
+        <img
+            src="assets/studyflow-icon.png"
+            alt="StudyFlow"
+            class="splash-icon"
+        >
+
+        <h1>
+            StudyFlow
+        </h1>
+
+        <p>
+            Organize. Estude. Evolua.
+        </p>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     APLICATIVO
+===================================================== -->
+
+<div class="app">
+
+
+    <!-- =================================================
+         SIDEBAR
+    ================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+
+            <div class="logo-icon">
+                S
+            </div>
+
+            <span>
+                StudyFlow
+            </span>
+
+        </div>
+
+
+        <nav>
+
+            <button
+                class="nav-item active"
+                data-screen="home"
+            >
+                <span>⌂</span>
+                <span>Início</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-screen="calendar"
+            >
+                <span>▣</span>
+                <span>Agenda</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-screen="subjects"
+            >
+                <span>◈</span>
+                <span>Matérias</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-screen="tasks"
+            >
+                <span>✓</span>
+                <span>Tarefas</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-screen="music"
+            >
+                <span>♫</span>
+                <span>Música</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-screen="progress"
+            >
+                <span>◒</span>
+                <span>Progresso</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-screen="profile"
+            >
+                <span>♙</span>
+                <span>Perfil</span>
+            </button>
+
+        </nav>
+
+    </aside>
+
+
+
+    <!-- =================================================
+         CONTEÚDO PRINCIPAL
+    ================================================== -->
+
+    <main class="main">
+
+
+        <!-- HEADER -->
+
+        <header class="header">
+
+            <div>
+
+                <p
+                    class="date"
+                    id="currentDate"
+                ></p>
+
+
+                <h1>
+                    Olá,
+                    <span id="welcomeName">
+                        estudante
+                    </span>!
+                    👋
+                </h1>
+
+
+                <p class="subtitle">
+                    Organize seus estudos e acompanhe seu progresso.
+                </p>
+
+            </div>
+
+
+            <div class="header-profile">
+
+                <img
+                    id="headerProfileImage"
+                    class="avatar"
+                    alt="Foto de perfil"
+                >
+
+
+                <div
+                    id="headerProfileInitial"
+                    class="avatar avatar-initial"
+                >
+                    S
+                </div>
+
+            </div>
+
+        </header>
+
+
+
+        <!-- =================================================
+             INÍCIO
+        ================================================== -->
+
+        <section
+            id="home"
+            class="screen active"
+        >
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+
+                    <span class="stat-icon">
+                        ✓
+                    </span>
+
+                    <div>
+
+                        <p>
+                            Tarefas concluídas
+                        </p>
+
+                        <strong id="completedCount">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <span class="stat-icon">
+                        ○
+                    </span>
+
+                    <div>
+
+                        <p>
+                            Tarefas pendentes
+                        </p>
+
+                        <strong id="pendingCount">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <span class="stat-icon">
+                        ◷
+                    </span>
+
+                    <div>
+
+                        <p>
+                            Horas estudadas
+                        </p>
+
+                        <strong id="homeStudyTime">0h</strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="dashboard-grid">
+
+
+                <div class="card daily-progress">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <p class="small-title">
+                                Seu progresso
+                            </p>
+
+                            <h2>
+                                Hoje
+                            </h2>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="progress-circle">
+
+                        <div>
+
+                            <strong id="dailyPercentage">
+                                0%
+                            </strong>
+
+                            <span>
+                                concluído
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <p
+                        class="progress-description"
+                        id="progressDescription"
+                    >
+                        Você ainda não possui tarefas.
+                    </p>
+
+                </div>
+
+
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <p class="small-title">
+                                Próximo compromisso
+                            </p>
+
+                            <h2>
+                                Agenda
+                            </h2>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="nextEvent"
+                        class="empty-state"
+                    >
+
+                        <div class="empty-icon">
+                            ○
+                        </div>
+
+                        <h3>
+                            Nada agendado
+                        </h3>
+
+                        <p>
+                            Sua agenda está tranquila.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div>
+
+                        <p class="small-title">
+                            Organização
+                        </p>
+
+                        <h2>
+                            Suas tarefas
+                        </h2>
+
+                    </div>
+
+
+                    <button
+                        class="secondary-button"
+                        data-screen="tasks"
+                    >
+                        Ver todas
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="homeTaskList"
+                    class="task-list"
+                ></div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             AGENDA
+        ================================================== -->
+
+        <section
+            id="calendar"
+            class="screen"
+        >
+
+            <div class="page-title calendar-title">
+
+                <div>
+
+                    <p class="small-title">
+                        Planejamento
+                    </p>
+
+                    <h2>
+                        Agenda
+                    </h2>
+
+                    <p>
+                        Veja suas tarefas e eventos.
+                    </p>
+
+                </div>
+
+
+                <button
+                    id="openEventModal"
+                    class="primary-button"
+                >
+                    + Novo evento
+                </button>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <div class="calendar-header">
+
+                    <button
+                        id="previousMonth"
+                        class="calendar-arrow"
+                    >
+                        ‹
+                    </button>
+
+
+                    <h2 id="calendarMonth">
+                        Setembro 2026
+                    </h2>
+
+
+                    <button
+                        id="nextMonth"
+                        class="calendar-arrow"
+                    >
+                        ›
+                    </button>
+
+                </div>
+
+
+                <div class="weekdays">
+
+                    <span>Dom</span>
+                    <span>Seg</span>
+                    <span>Ter</span>
+                    <span>Qua</span>
+                    <span>Qui</span>
+                    <span>Sex</span>
+                    <span>Sáb</span>
+
+                </div>
+
+
+                <div
+                    id="calendarGrid"
+                    class="calendar-grid"
+                ></div>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div>
+
+                        <p class="small-title">
+                            Selecionado
+                        </p>
+
+                        <h2 id="selectedDateTitle">
+                            Agenda do dia
+                        </h2>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="selectedDayContent"
+                    class="day-events"
+                ></div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             MATÉRIAS
+        ================================================== -->
+
+        <section
+            id="subjects"
+            class="screen"
+        >
+
+            <div class="page-title">
+
+                <p class="small-title">
+                    Estudos
+                </p>
+
+                <h2>
+                    Matérias
+                </h2>
+
+                <p>
+                    Acompanhe suas disciplinas.
+                </p>
+
+            </div>
+
+
+            <div class="subjects-grid">
+
+    <div class="subject-card" data-subject="Matemática">
+        <span>📐</span>
+        <h3>Matemática</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Biologia">
+        <span>🧬</span>
+        <h3>Biologia</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Química">
+        <span>⚗️</span>
+        <h3>Química</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Física">
+        <span>🔬</span>
+        <h3>Física</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="História">
+        <span>📚</span>
+        <h3>História</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Geografia">
+        <span>🌎</span>
+        <h3>Geografia</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Linguística">
+        <span>🔤</span>
+        <h3>Linguística</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Literatura">
+        <span>📖</span>
+        <h3>Literatura</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Filosofia">
+        <span>💭</span>
+        <h3>Filosofia</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Sociologia">
+        <span>👥</span>
+        <h3>Sociologia</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Arte">
+        <span>🎨</span>
+        <h3>Arte</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Educação Física">
+        <span>🏃</span>
+        <h3>Educação Física</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Atualidades/Repertório">
+        <span>📰</span>
+        <h3>Atualidades / Repertório</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Saúde e Bem-Estar">
+        <span>🌱</span>
+        <h3>Saúde e Bem-Estar</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+    <div class="subject-card" data-subject="Produção Textual">
+        <span>✍️</span>
+        <h3>Produção Textual</h3>
+        <p class="subject-pending">0 tarefas pendentes</p>
+        <small class="subject-completed">0 concluídas</small>
+    </div>
+
+
+   <div class="subject-card" data-subject="Projeto de Vida">
+    <span>🌷</span>
+    <h3>Projeto de Vida</h3>
+    <p class="subject-pending">0 tarefas pendentes</p>
+    <small class="subject-completed">0 concluídas</small>
+</div>
+
+</div>
+
+</section>
+
+        <!-- =================================================
+             TAREFAS
+        ================================================== -->
+
+        <section
+            id="tasks"
+            class="screen"
+        >
+
+            <div class="page-title task-page-header">
+
+                <div>
+
+                    <p class="small-title">
+                        Organização
+                    </p>
+
+                    <h2>
+                        Tarefas
+                    </h2>
+
+                    <p>
+                        Gerencie tudo que precisa fazer.
+                    </p>
+
+                </div>
+
+
+                <button
+                    id="openTaskModal"
+                    class="primary-button"
+                >
+                    + Nova tarefa
+                </button>
+
+            </div>
+
+
+            <div class="task-filters">
+
+                <button
+                    class="filter active"
+                    data-filter="all"
+                >
+                    Todas
+                </button>
+
+
+                <button
+                    class="filter"
+                    data-filter="pending"
+                >
+                    Pendentes
+                </button>
+
+
+                <button
+                    class="filter"
+                    data-filter="completed"
+                >
+                    Concluídas
+                </button>
+
+            </div>
+
+
+            <div class="card">
+
+                <div
+                    id="taskList"
+                    class="task-list"
+                ></div>
+
+
+                <div
+                    id="emptyTasks"
+                    class="empty-state"
+                >
+
+                    <div class="empty-icon">
+                        ✓
+                    </div>
+
+                    <h3>
+                        Nenhuma tarefa por aqui
+                    </h3>
+
+                    <p>
+                        Você ainda não adicionou nenhuma tarefa.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             MÚSICA
+        ================================================== -->
+
+        <section
+            id="music"
+            class="screen"
+        >
+
+            <div class="page-title">
+
+                <p class="small-title">
+                    Concentração
+                </p>
+
+                <h2>
+                    Música
+                </h2>
+
+                <p>
+                    Crie um ambiente tranquilo para estudar.
+                </p>
+
+            </div>
+
+
+            <div class="music-grid">
+
+
+                <div class="music-card featured">
+
+                    <div class="music-cover">
+                        ♫
+                    </div>
+
+                    <div class="music-content">
+
+                        <p class="small-title">
+                            Para estudar
+                        </p>
+
+                        <h2>
+                            Instrumental para concentração 
+                        </h2>
+
+                        <p>
+                            Música tranquila, sons instrumentais
+                            para acompanhar seus estudos.
+                        </p>
+
+
+                        <a
+                            class="music-button"
+                            href="https://open.spotify.com/playlist/2sZYutAwhMODqCaS0mYj4Z?si=CUcUgsneTGqyfg-KLhIJ2g"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Abrir Spotify
+                        </a>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="music-card">
+
+                    <div class="music-icon">
+                        ♫
+                    </div>
+
+                    <h3>
+                        Lo-fi para estudar
+                    </h3>
+
+                    <p>
+                        Batidas suaves para deixar o ambiente
+                        mais confortável.
+                    </p>
+
+                    <a
+                        class="music-link"
+                        href="https://open.spotify.com/playlist/5z9CdKSqJjAt30rhTlRDZX?si=gbvI-6GxStWQEMtOG0mPhA"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Encontrar playlist →
+                    </a>
+
+                </div>
+
+
+
+                <div class="music-card">
+
+                    <div class="music-icon">
+                        ♪
+                    </div>
+
+                    <h3>
+                        Piano & clássico
+                    </h3>
+
+                    <p>
+                        Instrumentais para momentos que exigem
+                        mais concentração.
+                    </p>
+
+                    <a
+                        class="music-link"
+                        href="https://open.spotify.com/playlist/1kGtBpJnR0bPWX4JXi5wUo?si=3hX2tO8bS_CECpE8WESP7Q"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Encontrar playlist →
+                    </a>
+
+                </div>
+
+
+
+                <div class="music-card">
+
+                    <div class="music-icon">
+                        ♬
+                    </div>
+
+                    <h3>
+                        Piano relaxante
+                    </h3>
+
+                    <p>
+                        Sons suaves de piano para criar um ambiente de estudo.
+                    </p>
+
+                    <a
+                        class="music-link"
+                        href="https://open.spotify.com/playlist/37i9dQZF1DX4sWSpwq3LiO?si=waDDrc6fRdGmiyT_Ftj5BA"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Encontrar playlist →
+                    </a>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div>
+
+                        <p class="small-title">
+                            Sua playlist
+                        </p>
+
+                        <h2>
+                            Adicionar playlist
+                        </h2>
+
+                    </div>
+
+                </div>
+
+
+                <p class="music-description">
+                    Cole o link de uma playlist pública do Spotify
+                    para adicioná-la ao seu espaço de estudos.
+                </p>
+
+
+                <div class="playlist-input">
+
+                    <input
+                        id="playlistUrl"
+                        type="url"
+                        placeholder="Cole aqui o link da playlist do Spotify"
+                    >
+
+
+                    <button
+                        id="addPlaylist"
+                        class="primary-button"
+                    >
+                        Adicionar
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="playlistContainer"
+                    class="playlist-container"
+                ></div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             PROGRESSO
+        ================================================== -->
+
+        <section
+            id="progress"
+            class="screen"
+        >
+
+    <!-- CONFIGURAÇÃO -->
+
+    <div id="focusSetup" class="focus-setup">
+
+        <p class="focus-label">
+            Quanto tempo você quer estudar?
+        </p>
+
+        <div class="focus-presets">
+
+            <button type="button" class="focus-preset" data-minutes="5">
+                5 min
+            </button>
+
+            <button type="button" class="focus-preset" data-minutes="15">
+                15 min
+            </button>
+
+            <button type="button" class="focus-preset active" data-minutes="25">
+                25 min
+            </button>
+
+            <button type="button" class="focus-preset" data-minutes="30">
+                30 min
+            </button>
+
+            <button type="button" class="focus-preset" data-minutes="45">
+                45 min
+            </button>
+
+            <button type="button" class="focus-preset" data-minutes="60">
+                60 min
+            </button>
+
+            <div class="focus-custom">
+                <input
+                    id="focusCustomMinutes"
+                    type="number"
+                    min="1"
+                    max="600"
+                    placeholder="Outro"
+                >
+
+                <span>min</span>
+            </div>
+
+        </div>
+
+
+        <button
+            id="startFocus"
+            class="primary-button full"
+            type="button"
+        >
+            Começar a estudar
+        </button>
+
+    </div>
+
+
+    <!-- CRONÔMETRO -->
+
+    <div
+        id="focusTimer"
+        class="focus-timer"
+        style="display: none;"
+    >
+
+        <div class="focus-timer-circle">
+
+            <div class="focus-timer-content">
+
+                <span id="focusStatus">
+                    Em foco
+                </span>
+
+                <strong id="focusTime">
+                    25:00
+                </strong>
+
+                <small>
+                    restantes
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="focus-actions">
+
+            <button
+                id="pauseFocus"
+                class="secondary-button"
+                type="button"
+            >
+                Pausar
+            </button>
+
+            <button
+                id="stopFocus"
+                class="secondary-button"
+                type="button"
+            >
+                Encerrar
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- CONCLUSÃO -->
+
+    <div
+        id="focusComplete"
+        class="focus-complete"
+        style="display: none;"
+    >
+
+        <div class="focus-complete-icon">
+            ✨
+        </div>
+
+        <h3>Sessão concluída!</h3>
+
+        <p id="focusCompleteMessage">
+            Você terminou sua sessão de foco.
+        </p>
+
+        <button
+            id="newFocus"
+            class="primary-button"
+            type="button"
+        >
+            Nova sessão
+        </button>
+
+    </div>
+
+
+    <!-- TEMPO ESTUDADO -->
+
+    <div class="focus-total">
+
+        <div>
+            <span>Hoje estudado</span>
+            <strong id="todayStudyTime">
+                0h 00min
+            </strong>
+        </div>
+
+        <div>
+            <span>Sessões concluídas</span>
+            <strong id="todayStudySessions">
+                0
+            </strong>
+        </div>
+
+    </div>
+
+            <div class="page-title">
+
+                <p class="small-title">
+                    Desempenho
+                </p>
+
+                <h2>
+                    Progresso
+                </h2>
+
+                <p>
+                    Veja como seus estudos estão evoluindo.
+                </p>
+
+            </div>
+
+
+            <div class="stats-grid">
+
+
+                <div class="stat-card">
+
+                    <span class="stat-icon">
+                        ✓
+                    </span>
+
+                    <div>
+
+                        <p>
+                            Concluídas
+                        </p>
+
+                        <strong id="progressCompleted">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <span class="stat-icon">
+                        ○
+                    </span>
+
+                    <div>
+
+                        <p>
+                            Pendentes
+                        </p>
+
+                        <strong id="progressPending">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <span class="stat-icon">
+                        %
+                    </span>
+
+                    <div>
+
+                        <p>
+                            Conclusão
+                        </p>
+
+                        <strong id="progressTotal">
+                            0%
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <h2>
+                    Progresso das tarefas
+                </h2>
+
+
+                <div class="large-progress">
+
+                    <div
+                        id="largeProgressBar"
+                    ></div>
+
+                </div>
+
+
+                <p id="largeProgressText">
+                    0 de 0 tarefas concluídas
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             PERFIL
+        ================================================== -->
+
+        <section
+            id="profile"
+            class="screen"
+        >
+
+            <div class="page-title">
+
+                <p class="small-title">
+                    Conta
+                </p>
+
+                <h2>
+                    Meu perfil
+                </h2>
+
+                <p>
+                    Personalize sua experiência.
+                </p>
+
+            </div>
+
+
+
+            <div class="profile-card card">
+
+                <div class="profile-photo-container">
+
+                    <img
+                        id="profileImage"
+                        class="profile-photo"
+                        alt="Foto de perfil"
+                    >
+
+
+                    <div
+                        id="profileInitial"
+                        class="profile-photo profile-initial"
+                    >
+                        S
+                    </div>
+
+
+                    <label
+                        for="profilePhotoInput"
+                        class="change-photo"
+                    >
+                        ✎
+                    </label>
+
+
+                    <input
+                        id="profilePhotoInput"
+                        type="file"
+                        accept="image/*"
+                        hidden
+                    >
+
+                </div>
+
+
+                <div class="profile-info">
+
+                   <h2 id="profileName">Estudante</h2>
+
+<p id="profileEmail">
+    Entre na sua conta
+</p>
+
+<button
+    id="editProfileName"
+    class="secondary-button"
+    type="button"
+>
+    Editar nome
+</button>
+
+<button
+    id="logoutButton"
+    class="secondary-button"
+    type="button"
+>
+    Sair da conta
+
+</button>
+
+                    <button
+                        id="removeProfilePhoto"
+                        class="secondary-button"
+                    >
+                        Remover foto
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- TEMAS -->
+
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div>
+
+                        <p class="small-title">
+                            Aparência
+                        </p>
+
+                        <h2>
+                            Temas
+                        </h2>
+
+                    </div>
+
+                </div>
+
+
+                <div class="theme-grid">
+
+                    <button
+                        class="theme-option"
+                        data-theme="light"
+                    >
+                        <span class="theme-preview light-preview"></span>
+                        <strong>Lavanda</strong>
+                        <small>Claro</small>
+                    </button>
+
+
+                    <button
+                        class="theme-option"
+                        data-theme="dark"
+                    >
+                        <span class="theme-preview dark-preview"></span>
+                        <strong>Noturno</strong>
+                        <small>Escuro</small>
+                    </button>
+
+
+                    <button
+                        class="theme-option"
+                        data-theme="blue"
+                    >
+                        <span class="theme-preview blue-preview"></span>
+                        <strong>Azul névoa</strong>
+                        <small>Suave</small>
+                    </button>
+
+
+                    <button
+                        class="theme-option"
+                        data-theme="rose"
+                    >
+                        <span class="theme-preview rose-preview"></span>
+                        <strong>Rosa antigo</strong>
+                        <small>Suave</small>
+                    </button>
+
+
+                    <button
+                        class="theme-option"
+                        data-theme="sage"
+                    >
+                        <span class="theme-preview sage-preview"></span>
+                        <strong>Verde sage</strong>
+                        <small>Natural</small>
+                    </button>
+
+
+                    <button
+                        class="theme-option"
+                        data-theme="cream"
+                    >
+                        <span class="theme-preview cream-preview"></span>
+                        <strong>Creme</strong>
+                        <small>Aconchegante</small>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- CONFIGURAÇÕES -->
+
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div>
+
+                        <p class="small-title">
+                            Preferências
+                        </p>
+
+                        <h2>
+                            Configurações
+                        </h2>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-list">
+
+
+                    <div class="setting">
+
+                        <div>
+
+                            <strong>
+                                Notificações
+                            </strong>
+
+                            <p>
+                                Receber lembretes das tarefas
+                            </p>
+
+                        </div>
+
+
+                        <input
+                            type="checkbox"
+                            checked
+                        >
+
+                    </div>
+
+
+
+                    <div class="setting">
+
+                        <div>
+
+                            <strong>
+                                Modo foco
+                            </strong>
+
+                            <p>
+                                Reduzir distrações durante os estudos
+                            </p>
+
+                        </div>
+
+
+                        <input
+                            type="checkbox"
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+
+<!-- =====================================================
+     NAVEGAÇÃO MOBILE
+===================================================== -->
+
+<nav class="mobile-nav">
+
+    <button
+        class="nav-item active"
+        data-screen="home"
+    >
+        <span>⌂</span>
+        <span>Início</span>
+    </button>
+
+
+    <button
+        class="nav-item"
+        data-screen="calendar"
+    >
+        <span>▣</span>
+        <span>Agenda</span>
+    </button>
+
+
+    <button
+        class="nav-item"
+        data-screen="tasks"
+    >
+        <span>✓</span>
+        <span>Tarefas</span>
+    </button>
+
+
+    <button
+        class="nav-item"
+        data-screen="progress"
+    >
+        <span>◒</span>
+        <span>Foco</span>
+    </button>
+
+
+    <button
+        class="nav-item"
+        data-screen="music"
+    >
+        <span>♫</span>
+        <span>Música</span>
+    </button>
+
+
+    <button
+        class="nav-item"
+        data-screen="profile"
+    >
+        <span>♙</span>
+        <span>Perfil</span>
+    </button>
+
+</nav>
+
+
+
+<!-- =====================================================
+     MODAL TAREFA
+===================================================== -->
+
+<div
+    id="taskModal"
+    class="modal"
+>
+
+    <div class="modal-content">
+
+        <button
+            id="closeTaskModal"
+            class="close-modal"
+        >
+            ×
+        </button>
+
+
+        <p class="small-title">
+            Organização
+        </p>
+
+
+        <h2 id="taskModalTitle">
+            Nova tarefa
+        </h2>
+
+
+        <form id="taskForm">
+
+            <label>
+
+                Nome da tarefa
+
+                <input
+                    id="taskTitle"
+                    type="text"
+                    placeholder="Ex.: Estudar matemática"
+                    required
+                >
+
+            </label>
+
+
+            <label>
+
+                Matéria
+
+                <select id="taskSubject">
+
+    <option>Matemática</option>
+    <option>Biologia</option>
+    <option>Química</option>
+    <option>Física</option>
+    <option>História</option>
+    <option>Geografia</option>
+    <option>Linguística</option>
+    <option>Literatura</option>
+    <option>Filosofia</option>
+    <option>Sociologia</option>
+    <option>Arte</option>
+    <option>Educação Física</option>
+    <option>Atualidades/Repertório</option>
+    <option>Saúde e Bem-Estar</option>
+    <option>Produção Textual</option>
+    <option>Projeto de Vida</option>
+    <option>Outra</option>
+
+</select>
+
+            </label>
+
+
+            <label>
+
+                Prazo
+
+                <input
+                    id="taskDate"
+                    type="date"
+                >
+
+            </label>
+
+
+            <label>
+
+                Prioridade
+
+                <select id="taskPriority">
+
+                    <option value="high">
+                        Alta
+                    </option>
+
+                    <option
+                        value="medium"
+                        selected
+                    >
+                        Normal
+                    </option>
+
+                    <option value="low">
+                        Baixa
+                    </option>
+
+                </select>
+
+            </label>
+
+
+            <button
+                id="taskSubmitButton"
+                type="submit"
+                class="primary-button full"
+            >
+                Criar tarefa
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     MODAL EVENTO
+===================================================== -->
+
+<div
+    id="eventModal"
+    class="modal"
+>
+
+    <div class="modal-content">
+
+        <button
+            id="closeEventModal"
+            class="close-modal"
+        >
+            ×
+        </button>
+
+
+        <p class="small-title">
+            Agenda
+        </p>
+
+
+        <h2 id="eventModalTitle">
+            Novo evento
+        </h2>
+
+
+        <form id="eventForm">
+
+            <label>
+
+                Nome do evento
+
+                <input
+                    id="eventTitle"
+                    type="text"
+                    placeholder="Ex.: Prova de Física"
+                    required
+                >
+
+            </label>
+
+
+            <label>
+
+                Descrição
+
+                <textarea
+                    id="eventDescription"
+                    placeholder="Adicione detalhes sobre o evento..."
+                    rows="4"
+                ></textarea>
+
+            </label>
+
+
+            <label>
+
+                Data do evento
+
+                <input
+                    id="eventDate"
+                    type="date"
+                    required
+                >
+
+            </label>
+
+
+            <button
+                id="eventSubmitButton"
+                type="submit"
+                class="primary-button full"
+            >
+                Criar evento
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     SERVICE WORKER
+===================================================== -->
+
+<script>
+
+    if ("serviceWorker" in navigator) {
+
+        window.addEventListener("load", () => {
+
+            navigator.serviceWorker
+                .register("./service-worker.js")
+
+                .then(() => {
+
+                    console.log(
+                        "StudyFlow pronto para uso offline."
+                    );
+
+                })
+
+                .catch(error => {
+
+                    console.error(
+                        "Erro no Service Worker:",
+                        error
+                    );
+
+                });
+
+        });
+
+    }
+
+</script>
+
+
+
+<!-- =====================================================
+     JAVASCRIPT PRINCIPAL
+===================================================== -->
+
+<script
+    type="module"
+    src="script.js"
+></script>
+
+
+</body>
+
+</html>
