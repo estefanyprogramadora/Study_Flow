@@ -6,7 +6,7 @@ const FILES_TO_CACHE = [
     "./style.css",
     "./script.js",
     "./manifest.json",
-    "./assets/icon.svg"
+    ""./studyflow-icon.png""
 ];
 
 self.addEventListener("install", event => {
