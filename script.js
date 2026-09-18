@@ -3535,6 +3535,7 @@ onAuthStateChanged(
     auth,
     user => {
 
+
         currentUser =
             user;
 
